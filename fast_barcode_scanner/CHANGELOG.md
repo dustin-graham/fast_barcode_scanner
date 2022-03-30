@@ -1,3 +1,6 @@
+## 2.0.0-dev.7
+- Fix error handling for iOS Vision scanner
+
 ## 2.0.0-dev.2
 
 - Analyze still images from binary or native image pickers on iOS and Android
