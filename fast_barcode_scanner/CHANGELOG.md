@@ -1,3 +1,6 @@
+## 2.0.0-dev.8
+- Fix iOS freezing issue
+
 ## 2.0.0-dev.7
 - Fix error handling for iOS Vision scanner
 
