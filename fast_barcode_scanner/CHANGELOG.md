@@ -1,3 +1,6 @@
+## 2.0.0-dev.9
+- fix android build
+
 ## 2.0.0-dev.8
 - Fix iOS freezing issue
 
