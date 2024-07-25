@@ -1,3 +1,6 @@
+## 2.0.0-dev.10
+- Update nexus to gojitsu
+
 ## 2.0.0-dev.9
 - fix android build
 
