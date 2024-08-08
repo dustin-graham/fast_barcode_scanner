@@ -18,6 +18,7 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import com.jhoogstraat.fast_barcode_scanner.types.PreviewConfiguration
 import com.jhoogstraat.fast_barcode_scanner.types.ScannerException
+import com.jhoogstraat.fast_barcode_scanner.types.asFlutterResult
 import com.jhoogstraat.fast_barcode_scanner.types.barcodeStringMap
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -107,7 +108,7 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
                 "init" -> {
                     initialize(call.arguments as HashMap<String, Any>)
                         .addOnSuccessListener { result.success(it.toMap()) }
-                        .addOnFailureListener { throw it }
+                        .addOnFailureListener { it.asFlutterResult(result) }
                     return
                 }
                 "scan" -> {
@@ -116,7 +117,7 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
                             result.success(barcodes?.map { encode(listOf(it)) })
                         }
                         .addOnFailureListener {
-                            throw ScannerException.AnalysisFailed(it)
+                            ScannerException.AnalysisFailed(it).asFlutterResult(result)
                         }
                     return
                 }
@@ -162,10 +163,10 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
 
     private fun encode(barcodes: List<Barcode>): List<List<*>> {
         return barcodes.map { listOf(
-                barcodeStringMap[it.format],
-                it.rawValue,
-                it.valueType,
-                buildPointList(it.cornerPoints)
+            barcodeStringMap[it.format],
+            it.rawValue,
+            it.valueType,
+            buildPointList(it.cornerPoints)
         ) }
     }
 

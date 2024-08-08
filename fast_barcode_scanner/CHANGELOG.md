@@ -1,3 +1,6 @@
+## 2.1.0
+- Add flutter exception handling, safe set state for barcode camera
+
 ## 2.0.0-dev.10
 - Update nexus to gojitsu
 
