@@ -3,6 +3,14 @@ package com.jhoogstraat.fast_barcode_scanner.types
 import io.flutter.plugin.common.MethodChannel.Result
 import java.io.IOException
 
+fun Exception.asFlutterResult(result: Result) {
+    if (this is ScannerException) {
+        throwFlutterError(result)
+    } else {
+        ScannerException.Unknown(this).throwFlutterError(result)
+    }
+}
+
 sealed class ScannerException : Exception() {
     class NotInitialized : ScannerException()
     class AlreadyInitialized : ScannerException()
