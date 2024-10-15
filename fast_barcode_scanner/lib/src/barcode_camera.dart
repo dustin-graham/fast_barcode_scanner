@@ -55,7 +55,6 @@ class BarcodeCamera extends StatefulWidget {
 
 class BarcodeCameraState extends State<BarcodeCamera> {
   var _opacity = 0.0;
-  var showingError = false;
 
   final cameraController = CameraController();
 
@@ -83,7 +82,7 @@ class BarcodeCameraState extends State<BarcodeCamera> {
 
     configurationFuture
         .whenComplete(() => _safeSetState(() => _opacity = 1.0))
-        .onError((error, stackTrace) => _safeSetState(() => showingError = true));
+        .onError((error, stackTrace) => _safeSetState(() {}));
 
     cameraController.events.addListener(onScannerEvent);
   }
@@ -96,11 +95,7 @@ class BarcodeCameraState extends State<BarcodeCamera> {
     if (!mounted) {
       return;
     }
-    if (cameraController.events.value != ScannerEvent.error && showingError) {
-      _safeSetState(() => showingError = false);
-    } else if (cameraController.events.value == ScannerEvent.error) {
-      _safeSetState(() => showingError = true);
-    }
+    _safeSetState(() {});
   }
 
   @override
