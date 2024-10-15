@@ -207,7 +207,6 @@ class _CameraController implements CameraController {
     } catch (error) {
       state._error = error;
       events.value = ScannerEvent.error;
-      rethrow;
     }
   }
 
@@ -224,7 +223,6 @@ class _CameraController implements CameraController {
     } catch (error) {
       state._error = error;
       events.value = ScannerEvent.error;
-      rethrow;
     }
   }
 
@@ -236,7 +234,6 @@ class _CameraController implements CameraController {
     } catch (error) {
       state._error = error;
       events.value = ScannerEvent.error;
-      rethrow;
     }
   }
 
@@ -248,7 +245,6 @@ class _CameraController implements CameraController {
     } catch (error) {
       state._error = error;
       events.value = ScannerEvent.error;
-      rethrow;
     }
   }
 
@@ -259,7 +255,6 @@ class _CameraController implements CameraController {
     } catch (error) {
       state._error = error;
       events.value = ScannerEvent.error;
-      rethrow;
     }
   }
 
@@ -270,7 +265,6 @@ class _CameraController implements CameraController {
     } catch (error) {
       state._error = error;
       events.value = ScannerEvent.error;
-      rethrow;
     }
   }
 
@@ -284,7 +278,6 @@ class _CameraController implements CameraController {
       } catch (error) {
         state._error = error;
         events.value = ScannerEvent.error;
-        rethrow;
       }
 
       _togglingTorch = false;
@@ -327,7 +320,6 @@ class _CameraController implements CameraController {
       } catch (error) {
         state._error = error;
         events.value = ScannerEvent.error;
-        rethrow;
       }
 
       _configuring = false;
@@ -341,7 +333,7 @@ class _CameraController implements CameraController {
     } catch (error) {
       state._error = error;
       events.value = ScannerEvent.error;
-      rethrow;
+      return null;
     }
   }
 
