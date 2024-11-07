@@ -3,6 +3,12 @@ package com.jhoogstraat.fast_barcode_scanner
 import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageFormat
+import android.graphics.Rect
+import android.graphics.YuvImage
+import android.media.Image
 import android.util.Log
 import android.view.Surface
 import androidx.camera.core.*
@@ -12,20 +18,33 @@ import androidx.core.content.ContextCompat
 import androidx.core.util.Consumer
 import androidx.lifecycle.LifecycleOwner
 import com.google.android.gms.tasks.OnFailureListener
-import com.google.android.gms.tasks.OnSuccessListener
 import com.google.mlkit.vision.barcode.Barcode
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry.RequestPermissionsResultListener
 import io.flutter.view.TextureRegistry
-import java.util.ArrayList
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.util.UUID
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-data class CameraConfig(val formats: IntArray, val mode: DetectionMode, val resolution: Resolution, val framerate: Framerate, val position: CameraPosition)
 
-class BarcodeReader(private val flutterTextureEntry: TextureRegistry.SurfaceTextureEntry, private val listener: (List<Barcode>) -> Unit) : RequestPermissionsResultListener {
+data class CameraConfig(
+    val formats: IntArray,
+    val mode: DetectionMode,
+    val resolution: Resolution,
+    val framerate: Framerate,
+    val position: CameraPosition
+)
+
+class BarcodeReader(
+    private val flutterTextureEntry: TextureRegistry.SurfaceTextureEntry,
+    private val listener: (List<Barcode>, String?) -> Unit
+) : RequestPermissionsResultListener {
     /* Android Lifecycle */
     private var activity: Activity? = null
 
@@ -67,16 +86,23 @@ class BarcodeReader(private val flutterTextureEntry: TextureRegistry.SurfaceText
 
         // Convert arguments to CameraConfig
         cameraConfig = CameraConfig(
-                (args["types"] as ArrayList<String>).map { barcodeFormatMap[it]!! }.toIntArray(),
-                DetectionMode.valueOf(args["mode"] as String),
-                Resolution.valueOf(args["res"] as String),
-                Framerate.valueOf(args["fps"] as String),
-                CameraPosition.valueOf(args["pos"] as String)
+            (args["types"] as ArrayList<String>).map { barcodeFormatMap[it]!! }.toIntArray(),
+            DetectionMode.valueOf(args["mode"] as String),
+            Resolution.valueOf(args["res"] as String),
+            Framerate.valueOf(args["fps"] as String),
+            CameraPosition.valueOf(args["pos"] as String)
         )
 
         if (allPermissionsGranted()) {
             initCamera()
-            result.success(hashMapOf("textureId" to flutterTextureEntry.id(), "surfaceOrientation" to 0, "surfaceHeight" to 1280, "surfaceWidth" to 720))
+            result.success(
+                hashMapOf(
+                    "textureId" to flutterTextureEntry.id(),
+                    "surfaceOrientation" to 0,
+                    "surfaceHeight" to 1280,
+                    "surfaceWidth" to 720
+                )
+            )
         } else {
             pendingResult = result
             ActivityCompat.requestPermissions(
@@ -101,22 +127,34 @@ class BarcodeReader(private val flutterTextureEntry: TextureRegistry.SurfaceText
 
     fun toggleTorch(result: Result) {
         if (!isInitialized) return
-        camera.cameraControl.enableTorch(camera.cameraInfo.torchState.value != TorchState.ON).addListener(Runnable {
-            result.success(camera.cameraInfo.torchState.value == TorchState.ON)
-        }, ContextCompat.getMainExecutor(activity))
+        camera.cameraControl.enableTorch(camera.cameraInfo.torchState.value != TorchState.ON)
+            .addListener(Runnable {
+                result.success(camera.cameraInfo.torchState.value == TorchState.ON)
+            }, ContextCompat.getMainExecutor(activity!!))
     }
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
-        ContextCompat.checkSelfPermission(activity!!.applicationContext, it) == PackageManager.PERMISSION_GRANTED
+        ContextCompat.checkSelfPermission(
+            activity!!.applicationContext,
+            it
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray): Boolean {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ): Boolean {
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
                 initCamera()
             } else {
                 pendingResult?.let {
-                    it.error("UNAUTHORIZED", "The application is not authorized to use the camera device", null)
+                    it.error(
+                        "UNAUTHORIZED",
+                        "The application is not authorized to use the camera device",
+                        null
+                    )
                     pendingResult = null
                 }
             }
@@ -128,18 +166,20 @@ class BarcodeReader(private val flutterTextureEntry: TextureRegistry.SurfaceText
     private fun initCamera() {
         // Init barcode Detector
         val options = BarcodeScannerOptions.Builder()
-                .setBarcodeFormats(0, *cameraConfig.formats)
-                .build()
+            .setBarcodeFormats(0, *cameraConfig.formats)
+            .build()
 
-        barcodeDetector = MLKitBarcodeDetector(options, OnSuccessListener { codes ->
-            if (!pauseDetection && codes.isNotEmpty()) {
-                if (cameraConfig.mode == DetectionMode.pauseDetection) {
-                    pauseDetection = true
-                } else if (cameraConfig.mode == DetectionMode.pauseVideo) {
-                    stop()
+        barcodeDetector = MLKitBarcodeDetector(options, object : OnDetectedListener<List<Barcode>> {
+            override fun onSuccess(codes: List<Barcode>, image: Image) {
+                if (!pauseDetection && codes.isNotEmpty()) {
+                    if (cameraConfig.mode == DetectionMode.pauseDetection) {
+                        pauseDetection = true
+                    } else if (cameraConfig.mode == DetectionMode.pauseVideo) {
+                        stop()
+                    }
+                    val file = saveImageToPath(image);
+                    listener(codes, file?.path)
                 }
-
-                listener(codes)
             }
         }, OnFailureListener {
             Log.e(TAG, "Error in MLKit", it)
@@ -151,6 +191,7 @@ class BarcodeReader(private val flutterTextureEntry: TextureRegistry.SurfaceText
             CameraPosition.front -> {
                 selectorBuilder.requireLensFacing(CameraSelector.LENS_FACING_FRONT)
             }
+
             CameraPosition.back -> {
                 selectorBuilder.requireLensFacing(CameraSelector.LENS_FACING_BACK)
             }
@@ -171,31 +212,34 @@ class BarcodeReader(private val flutterTextureEntry: TextureRegistry.SurfaceText
         cameraProviderFuture.addListener(Runnable {
             cameraProvider = cameraProviderFuture.get()
             isInitialized = true
-            try { bindCameraUseCases() }
-            catch (exc: Exception) { Log.e(TAG, "Use case binding failed", exc) }
+            try {
+                bindCameraUseCases()
+            } catch (exc: Exception) {
+                Log.e(TAG, "Use case binding failed", exc)
+            }
         }, ContextCompat.getMainExecutor(activity!!))
     }
 
     private fun bindCameraUseCases() {
         // Preview
         val preview = Preview.Builder()
-                .setTargetAspectRatio(AspectRatio.RATIO_16_9)
-                //.setTargetResolution(cameraConfig.resolution.size())
-                .setTargetRotation(Surface.ROTATION_90)
-                .build()
+            .setTargetAspectRatio(AspectRatio.RATIO_16_9)
+            //.setTargetResolution(cameraConfig.resolution.size())
+            .setTargetRotation(Surface.ROTATION_90)
+            .build()
 
         val imageAnalyzer = ImageAnalysis.Builder()
-                .setTargetAspectRatio(AspectRatio.RATIO_16_9)
-                // .setTargetResolution(cameraConfig.resolution.size())
-                .setTargetRotation(Surface.ROTATION_90)
-                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .setTargetAspectRatio(AspectRatio.RATIO_16_9)
+            // .setTargetResolution(cameraConfig.resolution.size())
+            .setTargetRotation(Surface.ROTATION_90)
+            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
 //                .also {
 //                    Set Framerate via Camera2 Interop
 //                    val interop = Camera2Interop.Extender(analyserBuilder)
 //                    interop.setCaptureRequestOption(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(cameraConfig.framerate.intValue(), cameraConfig.framerate.intValue()))
 //                }
-                .build()
-                .also { it.setAnalyzer(cameraExecutor, barcodeDetector) }
+            .build()
+            .also { it.setAnalyzer(cameraExecutor, barcodeDetector) }
 
         // As required by CameraX, unbinds all use cases before trying to re-bind any of them.
         cameraProvider.unbindAll()
@@ -204,7 +248,12 @@ class BarcodeReader(private val flutterTextureEntry: TextureRegistry.SurfaceText
         preview.setSurfaceProvider(cameraExecutor, cameraSurfaceProvider)
 
         // Bind camera to Lifecycle
-        camera = cameraProvider.bindToLifecycle(activity!! as LifecycleOwner, cameraSelector, preview, imageAnalyzer)
+        camera = cameraProvider.bindToLifecycle(
+            activity!! as LifecycleOwner,
+            cameraSelector,
+            preview,
+            imageAnalyzer
+        )
 
         // Make sure detections are allowed
         pauseDetection = false
@@ -214,6 +263,87 @@ class BarcodeReader(private val flutterTextureEntry: TextureRegistry.SurfaceText
         private const val TAG = "fast_barcode_scanner"
         private const val REQUEST_CODE_PERMISSIONS = 10
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
+    }
+
+
+    fun saveImageToPath(image: Image): File? {
+        val filename = UUID.randomUUID().toString()
+        val imageFile: File
+        val externalFilesDirectory = activity!!.cacheDir
+
+        try {
+            externalFilesDirectory.mkdirs()
+            imageFile = File.createTempFile(filename, ".png", externalFilesDirectory)
+        } catch (e: IOException) {
+            throw RuntimeException(e)
+        }
+
+        var fos: FileOutputStream? = null
+        try {
+            val bitmap = imageToBitmap(image)
+            fos = FileOutputStream(imageFile)
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos)
+        } catch (e: IOException) {
+            e.printStackTrace()
+        } finally {
+            fos?.close()
+        }
+
+        return imageFile
+    }
+
+    private fun imageToBitmap(image: Image): Bitmap {
+        if (image.format == ImageFormat.YUV_420_888) {
+            val yBuffer = image.planes[0].buffer // Y
+            val uBuffer = image.planes[1].buffer // U
+            val vBuffer = image.planes[2].buffer // V
+
+            val ySize = yBuffer.remaining()
+            val uSize = uBuffer.remaining()
+            val vSize = vBuffer.remaining()
+
+            val nv21 = ByteArray(ySize + uSize + vSize)
+
+            // Copy Y channel
+            yBuffer[nv21, 0, ySize]
+
+            // Copy VU channel (assuming NV21 format)
+            vBuffer[nv21, ySize, vSize]
+            uBuffer[nv21, ySize + vSize, uSize]
+
+            val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)
+            val out = ByteArrayOutputStream()
+            yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 100, out)
+            val jpegBytes = out.toByteArray()
+
+            return BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
+        } else {
+            throw IllegalArgumentException("Unsupported image format")
+        }
+    }
+
+    fun imageToByteArray(image: Image): ByteArray {
+        if (image.format == ImageFormat.YUV_420_888) {
+            val yBuffer = image.planes[0].buffer // Y plane
+            val uBuffer = image.planes[1].buffer // U plane
+            val vBuffer = image.planes[2].buffer // V plane
+
+            val ySize = yBuffer.remaining()
+            val uSize = uBuffer.remaining()
+            val vSize = vBuffer.remaining()
+
+            // Allocate a byte array large enough to store the data
+            val byteArray = ByteArray(ySize + uSize + vSize)
+
+            // Copy Y, U, and V planes into the byte array
+            yBuffer[byteArray, 0, ySize]
+            vBuffer[byteArray, ySize, vSize]
+            uBuffer[byteArray, ySize + vSize, uSize]
+
+            return byteArray
+        } else {
+            throw java.lang.IllegalArgumentException("Unsupported image format")
+        }
     }
 
 }

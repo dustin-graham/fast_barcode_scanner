@@ -78,7 +78,7 @@ class CameraController {
       Framerate framerate,
       DetectionMode detectionMode,
       CameraPosition position,
-      void Function(Barcode)? onScan) async {
+      void Function(Barcode, String?)? onScan) async {
     state.eventNotifier.value = CameraEvent.init;
 
     try {
@@ -87,9 +87,9 @@ class CameraController {
           types, resolution, framerate, detectionMode, position);
 
       /// Notify the overlays when a barcode is detected and then call [onDetect].
-      _platform.setOnDetectHandler((code) {
+      _platform.setOnDetectHandler((code, image) {
         state.eventNotifier.value = CameraEvent.codeFound;
-        onScan?.call(code);
+        onScan?.call(code, image);
       });
 
       state.eventNotifier.value = CameraEvent.resumed;

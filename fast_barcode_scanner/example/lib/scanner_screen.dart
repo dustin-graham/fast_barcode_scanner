@@ -1,5 +1,5 @@
 import 'dart:async';
-
+import 'dart:io';
 import 'package:fast_barcode_scanner/fast_barcode_scanner.dart';
 import 'package:flutter/material.dart';
 import 'detections_counter.dart';
@@ -15,6 +15,7 @@ class ScannerScreen extends StatefulWidget {
 
 class _ScannerScreenState extends State<ScannerScreen> {
   final _torchIconState = ValueNotifier(false);
+  String? image;
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +56,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
         framerate: Framerate.fps30,
         mode: DetectionMode.pauseVideo,
         position: CameraPosition.back,
-        onScan: (code) => codeStream.add(code),
+        onScan: (code, image) {
+          this.image = image;
+          codeStream.add(code);
+        },
         children: [
           const MaterialPreviewOverlay(animateDetection: false),
           const BlurPreviewOverlay(),
@@ -68,6 +72,20 @@ class _ScannerScreenState extends State<ScannerScreen> {
                 ElevatedButton(
                   child: const Text("Resume"),
                   onPressed: () => CameraController.instance.resumeDetector(),
+                ),
+                ElevatedButton(
+                  child: const Text("ShowImage"),
+                  onPressed: () => showModalBottomSheet(
+                    context: context,
+                    builder: (context) {
+                      if (image == null) {
+                        return const Center(
+                          child: Text("No image available"),
+                        );
+                      }
+                      return Image.file(File(image!));
+                    },
+                  ),
                 ),
                 const SizedBox(height: 20),
                 const DetectionsCounter()
