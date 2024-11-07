@@ -273,7 +273,13 @@ class BarcodeReader(
 
         try {
             externalFilesDirectory.mkdirs()
-            imageFile = File.createTempFile(filename, ".png", externalFilesDirectory)
+            val barcodeDirectory = File(externalFilesDirectory, "barcode_images")
+            if (!barcodeDirectory.exists()) {
+                barcodeDirectory.mkdirs()
+            }
+
+            imageFile = File.createTempFile(filename, ".png", barcodeDirectory)
+            imageFile.deleteOnExit()
         } catch (e: IOException) {
             throw RuntimeException(e)
         }
@@ -321,29 +327,4 @@ class BarcodeReader(
             throw IllegalArgumentException("Unsupported image format")
         }
     }
-
-    fun imageToByteArray(image: Image): ByteArray {
-        if (image.format == ImageFormat.YUV_420_888) {
-            val yBuffer = image.planes[0].buffer // Y plane
-            val uBuffer = image.planes[1].buffer // U plane
-            val vBuffer = image.planes[2].buffer // V plane
-
-            val ySize = yBuffer.remaining()
-            val uSize = uBuffer.remaining()
-            val vSize = vBuffer.remaining()
-
-            // Allocate a byte array large enough to store the data
-            val byteArray = ByteArray(ySize + uSize + vSize)
-
-            // Copy Y, U, and V planes into the byte array
-            yBuffer[byteArray, 0, ySize]
-            vBuffer[byteArray, ySize, vSize]
-            uBuffer[byteArray, ySize + vSize, uSize]
-
-            return byteArray
-        } else {
-            throw java.lang.IllegalArgumentException("Unsupported image format")
-        }
-    }
-
 }
