@@ -17,7 +17,7 @@ struct StartArgs {
         self.position = position
 		self.framerate = framerate
 		self.resolution = resolution
-		self.detectionMode = detectionMode
+		self.detectionMode = detectionModes
 		self.codes = codes
 	}
 
@@ -82,8 +82,8 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin {
 		}
 
 		do {
-			reader = try BarcodeReader(textureRegistry: textureRegistry, arguments: args) { [unowned self] code in
-				self.channel.invokeMethod("read", arguments: code)
+			reader = try BarcodeReader(textureRegistry: textureRegistry, arguments: args) { [unowned self] code, [unowned self] image in
+                self.channel.invokeMethod("read", arguments: ["barcodes":code, "image":image])
 			}
 
 			try reader!.start(fromPause: false)

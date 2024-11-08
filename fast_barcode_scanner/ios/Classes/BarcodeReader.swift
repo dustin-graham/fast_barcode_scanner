@@ -89,15 +89,18 @@ class BarcodeReader: NSObject {
 	var captureSession: AVCaptureSession
 	let dataOutput: AVCaptureVideoDataOutput
     var metadataOutput: AVCaptureMetadataOutput
-	let codeCallback: ([String]) -> Void
+	let codeCallback: ([String], String) -> Void
 	let detectionMode: DetectionMode
     let position: AVCaptureDevice.Position
 	var torchActiveOnStop = false
 	var previewSize: CMVideoDimensions!
+	let photoOutput = AVCapturePhotoOutput()
+    var isCapturing = false
+    var outputImage : String
 
 	init(textureRegistry: FlutterTextureRegistry,
       arguments: StartArgs,
-      codeCallback: @escaping ([String]) -> Void) throws {
+      codeCallback: @escaping ([String], String) -> Void) throws {
 		self.textureRegistry = textureRegistry
 		self.codeCallback = codeCallback
 		self.captureSession = AVCaptureSession()
@@ -124,6 +127,7 @@ class BarcodeReader: NSObject {
         }
 
         captureSession.addOutput(dataOutput)
+        captureSession.addOutput(photoOutput)
         captureSession.addOutput(metadataOutput)
 
 		dataOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
@@ -131,8 +135,15 @@ class BarcodeReader: NSObject {
 		dataOutput.alwaysDiscardsLateVideoFrames = true
 		dataOutput.setSampleBufferDelegate(self, queue: DispatchQueue.global(qos: .default))
 
+        let photoSettings = AVCapturePhotoSettings()
+        if !isCapturing {
+            isCapturing = true
+            photoOutput.capturePhoto(with: photoSettings, delegate: self)
+        }
+
 		metadataOutput.setMetadataObjectsDelegate(self, queue: DispatchQueue.global(qos: .default))
 		metadataOutput.metadataObjectTypes = arguments.codes.compactMap { avMetadataObjectTypes[$0] }
+
 
 		guard let optimalFormat = captureDevice.formats.first(where: {
 			let dimensions = CMVideoFormatDescriptionGetDimensions($0.formatDescription)
@@ -268,7 +279,7 @@ extension BarcodeReader: AVCaptureMetadataOutputObjectsDelegate {
 
 		pauseIfRequired()
 
-		codeCallback([flutterMetadataObjectTypes[readableCode.type]!, readableCode.stringValue!])
+		codeCallback([flutterMetadataObjectTypes[readableCode.type]!, readableCode.stringValue!], outputImage)
 	}
 }
 
@@ -282,4 +293,15 @@ extension FourCharCode {
 			0
 		])
 	}
+}
+
+extension BarcodeReader: AVCapturePhotoCaptureDelegate {
+    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+        isCapturing = false
+        guard let imageData = photo.fileDataRepresentation() else {
+            print("Error while generating image from photo capture data.");
+            return
+        }
+        outputImage = imageData
+     }
 }
