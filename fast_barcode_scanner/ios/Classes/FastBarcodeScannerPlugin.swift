@@ -17,7 +17,7 @@ struct StartArgs {
         self.position = position
 		self.framerate = framerate
 		self.resolution = resolution
-		self.detectionMode = detectionModes
+		self.detectionMode = detectionMode
 		self.codes = codes
 	}
 
@@ -65,47 +65,49 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin {
 	}
 
 	func start(call: FlutterMethodCall, result: @escaping FlutterResult) {
-		guard reader == nil else {
-			let error = FlutterError(code: "ALREADY_RUNNING",
-															 message: "Start cannot be called when already running",
-															 details: nil)
-			result(error)
-			return
-		}
+        guard reader == nil else {
+            let error = FlutterError(code: "ALREADY_RUNNING",
+                                                             message: "Start cannot be called when already running",
+                                                             details: nil)
+            result(error)
+            return
+        }
 
-		guard let args = StartArgs(call.arguments) else {
-			let error = FlutterError(code: "INVALID_ARGUMENT",
-															 message: "Missing a required argument",
-															 details: "Expected resolution, framerate, mode and types")
-			result(error)
-			return
-		}
+        guard let args = StartArgs(call.arguments) else {
+            let error = FlutterError(code: "INVALID_ARGUMENT",
+                                                             message: "Missing a required argument",
+                                                             details: "Expected resolution, framerate, mode and types")
+            result(error)
+            return
+        }
 
-		do {
-			reader = try BarcodeReader(textureRegistry: textureRegistry, arguments: args) { [unowned self] code, [unowned self] image in
-                self.channel.invokeMethod("read", arguments: ["barcodes":code, "image":image])
-			}
+        do {
+            reader = try BarcodeReader(textureRegistry: textureRegistry, arguments: args) { [unowned self] code, photo in
+                DispatchQueue.main.async {
+                    self.channel.invokeMethod("read", arguments: ["code": code, "image": photo])
+                }
+            }
 
-			try reader!.start(fromPause: false)
+            try reader!.start(fromPause: false)
 
-			result([
-				"surfaceWidth": reader!.previewSize.height,
-				"surfaceHeight": reader!.previewSize.width,
-				"surfaceOrientation": 0,
-				"textureId": reader!.textureId!
-			])
+            result([
+                "surfaceWidth": reader!.previewSize.height,
+                "surfaceHeight": reader!.previewSize.width,
+                "surfaceOrientation": 0,
+                "textureId": reader!.textureId!
+            ])
 
-		} catch ReaderError.noInputDevice {
-			result(FlutterError(code: "AV_NO_INPUT_DEVICE",
-													message: "No input device found",
-													details: "Are you using a simulator?"))
-		} catch ReaderError.cameraNotSuitable(let res, let fps) {
-			result(FlutterError(code: "CAMERA_NOT_SUITABLE",
-													message: """
+        } catch ReaderError.noInputDevice {
+            result(FlutterError(code: "AV_NO_INPUT_DEVICE",
+                                                    message: "No input device found",
+                                                    details: "Are you using a simulator?"))
+        } catch ReaderError.cameraNotSuitable(let res, let fps) {
+            result(FlutterError(code: "CAMERA_NOT_SUITABLE",
+                                                    message: """
                                                         The camera does not support the requested resolution (\(res)) \
                                                         and framerate (\(fps)) combination
                                                         """,
-													details: "try to lower your settings"))
+                                                    details: "try to lower your settings"))
         } catch ReaderError.unauthorized {
                 result(FlutterError(code: "UNAUTHORIZED",
                                     message: "The application is not authorized to use the camera device",

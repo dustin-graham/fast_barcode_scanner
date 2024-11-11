@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:fast_barcode_scanner/fast_barcode_scanner.dart';
 import 'package:flutter/material.dart';
+
 import 'detections_counter.dart';
 
 final codeStream = StreamController<Barcode>.broadcast();
@@ -83,6 +85,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                           child: Text("No image available"),
                         );
                       }
+                      print("YEPP - $image");
                       return Image.file(File(image!));
                     },
                   ),

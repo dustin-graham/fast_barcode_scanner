@@ -89,18 +89,19 @@ class BarcodeReader: NSObject {
 	var captureSession: AVCaptureSession
 	let dataOutput: AVCaptureVideoDataOutput
     var metadataOutput: AVCaptureMetadataOutput
-	let codeCallback: ([String], String) -> Void
+	let codeCallback: ([String], String?) -> Void
 	let detectionMode: DetectionMode
     let position: AVCaptureDevice.Position
 	var torchActiveOnStop = false
 	var previewSize: CMVideoDimensions!
+
 	let photoOutput = AVCapturePhotoOutput()
     var isCapturing = false
-    var outputImage : String
+    var outputImage : String?
 
 	init(textureRegistry: FlutterTextureRegistry,
       arguments: StartArgs,
-      codeCallback: @escaping ([String], String) -> Void) throws {
+      codeCallback: @escaping ([String], String?) -> Void) throws {
 		self.textureRegistry = textureRegistry
 		self.codeCallback = codeCallback
 		self.captureSession = AVCaptureSession()
@@ -134,12 +135,6 @@ class BarcodeReader: NSObject {
 		dataOutput.connection(with: .video)?.videoOrientation = .portrait
 		dataOutput.alwaysDiscardsLateVideoFrames = true
 		dataOutput.setSampleBufferDelegate(self, queue: DispatchQueue.global(qos: .default))
-
-        let photoSettings = AVCapturePhotoSettings()
-        if !isCapturing {
-            isCapturing = true
-            photoOutput.capturePhoto(with: photoSettings, delegate: self)
-        }
 
 		metadataOutput.setMetadataObjectsDelegate(self, queue: DispatchQueue.global(qos: .default))
 		metadataOutput.metadataObjectTypes = arguments.codes.compactMap { avMetadataObjectTypes[$0] }
@@ -277,6 +272,12 @@ extension BarcodeReader: AVCaptureMetadataOutputObjectsDelegate {
 			let readableCode = metadata as? AVMetadataMachineReadableCodeObject
 			else { return }
 
+            let photoSettings = AVCapturePhotoSettings()
+            if !isCapturing {
+                isCapturing = true
+                photoOutput.capturePhoto(with: photoSettings, delegate: self)
+            }
+
 		pauseIfRequired()
 
 		codeCallback([flutterMetadataObjectTypes[readableCode.type]!, readableCode.stringValue!], outputImage)
@@ -302,6 +303,6 @@ extension BarcodeReader: AVCapturePhotoCaptureDelegate {
             print("Error while generating image from photo capture data.");
             return
         }
-        outputImage = imageData
+        outputImage = imageData.base64EncodedString()
      }
 }
