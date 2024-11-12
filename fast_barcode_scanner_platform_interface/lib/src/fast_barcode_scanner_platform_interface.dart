@@ -7,7 +7,7 @@ import 'types/barcode_type.dart';
 import 'types/preview_configuration.dart';
 
 /// Callback handler method for receiving scanned codes.
-typedef OnDetectionHandler = void Function(List<Barcode>);
+typedef OnDetectionHandler = void Function(List<Barcode>, String);
 
 /// The interface that implementations of fast_barcode_scanner must implement.
 ///

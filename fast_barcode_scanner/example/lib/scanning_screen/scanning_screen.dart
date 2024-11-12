@@ -100,7 +100,7 @@ class _ScanningScreenState extends State<ScanningScreen> {
         mode: DetectionMode.continuous,
         position: CameraPosition.back,
         apiMode: widget.apiMode,
-        onScan: (code) {
+        onScan: (code, image) {
           history.addAll(code);
         },
         children: [
@@ -108,7 +108,7 @@ class _ScanningScreenState extends State<ScanningScreen> {
               .contains(ScanningOverlayType.materialOverlay))
             MaterialPreviewOverlay(
               rectOfInterest: RectOfInterest.wide(), // this can be wide or square
-              onScan: (codes) {
+              onScan: (codes, base64Image) {
                 // these are codes that only appear within the finder rectangle
               },
               showSensing: true,

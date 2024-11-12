@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.graphics.Point
+import android.media.Image
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.annotation.NonNull
@@ -182,8 +183,13 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
             activityBinding.activity,
             pluginBinding.textureRegistry.createSurfaceTexture(),
             configuration
-        ) { barcodes ->
-            detectionEventSink?.success(encode(barcodes))
+        ) { barcodes, image ->
+            detectionEventSink?.success(
+                mapOf(
+                    "barcodes" to encode(barcodes),
+                    "image" to image
+                )
+            )
         }
 
         this.camera = camera

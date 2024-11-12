@@ -132,7 +132,7 @@ class MaterialPreviewOverlayState extends State<MaterialPreviewOverlay>
     if (_filteredCodes.isEmpty) {
       _controller?.forward();
     } else {
-      widget.onScan?.call(_filteredCodes);
+      widget.onScan?.call(_filteredCodes, "");
       _controller?.reset();
     }
   }

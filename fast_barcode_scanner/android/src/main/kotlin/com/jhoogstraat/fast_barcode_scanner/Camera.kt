@@ -3,6 +3,13 @@ package com.jhoogstraat.fast_barcode_scanner
 import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageFormat
+import android.graphics.Rect
+import android.graphics.YuvImage
+import android.media.Image
+import android.util.Base64
 import android.util.Log
 import android.view.Surface
 import androidx.camera.core.*
@@ -17,9 +24,11 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.jhoogstraat.fast_barcode_scanner.scanner.MLKitBarcodeScanner
+import com.jhoogstraat.fast_barcode_scanner.scanner.OnDetectedListener
 import com.jhoogstraat.fast_barcode_scanner.types.*
 import io.flutter.plugin.common.PluginRegistry.RequestPermissionsResultListener
 import io.flutter.view.TextureRegistry
+import java.io.ByteArrayOutputStream
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -28,7 +37,7 @@ class Camera(
     val activity: Activity,
     val flutterTextureEntry: TextureRegistry.SurfaceTextureEntry,
     args: HashMap<String, Any>,
-    private val listener: (List<Barcode>) -> Unit
+    private val listener: (List<Barcode>, String?) -> Unit
 ) : RequestPermissionsResultListener {
 
     /* Scanner configuration */
@@ -89,19 +98,22 @@ class Camera(
             .setBarcodeFormats(0, *scannerConfiguration.formats)
             .build()
 
-        barcodeScanner = MLKitBarcodeScanner(options, { codes ->
-            if (codes.isNotEmpty()) {
-                if (scannerConfiguration.mode == DetectionMode.pauseDetection) {
-                    stopDetector()
-                } else if (scannerConfiguration.mode == DetectionMode.pauseVideo) {
-                    stopCamera()
+        barcodeScanner = MLKitBarcodeScanner(options, object : OnDetectedListener<List<Barcode>> {
+            override fun onSuccess(codes: List<Barcode>, image: Image) {
+                if (codes.isNotEmpty()) {
+                    if (scannerConfiguration.mode == DetectionMode.pauseDetection) {
+                        stopDetector()
+                    } else if (scannerConfiguration.mode == DetectionMode.pauseVideo) {
+                        stopCamera()
+                    }
+                    val base64Image =
+                        imageToBase64(image, Bitmap.CompressFormat.JPEG);
+                    listener(codes, base64Image)
                 }
-
-                listener(codes)
             }
-        }, {
-            Log.e(TAG, "Error in Scanner", it)
-        })
+        }) {
+            Log.e(TAG, "Error in MLKit", it)
+        }
 
         // Create Camera Thread
         cameraExecutor = Executors.newSingleThreadExecutor()
@@ -325,4 +337,51 @@ class Camera(
         )
     }
 
+
+    fun imageToBase64(
+        image: Image,
+        format: Bitmap.CompressFormat = Bitmap.CompressFormat.PNG
+    ): String {
+        val bitmap = imageToBitmap(image)
+        val outputStream = ByteArrayOutputStream()
+
+        // Compress the bitmap with the specified format (e.g., PNG or JPEG)
+        bitmap.compress(format, 100, outputStream)
+
+        // Get the byte array from the output stream
+        val byteArray = outputStream.toByteArray()
+
+        // Encode the byte array to Base64 string
+        return Base64.encodeToString(byteArray, Base64.DEFAULT)
+    }
+
+    private fun imageToBitmap(image: Image): Bitmap {
+        if (image.format == ImageFormat.YUV_420_888) {
+            val yBuffer = image.planes[0].buffer // Y
+            val uBuffer = image.planes[1].buffer // U
+            val vBuffer = image.planes[2].buffer // V
+
+            val ySize = yBuffer.remaining()
+            val uSize = uBuffer.remaining()
+            val vSize = vBuffer.remaining()
+
+            val nv21 = ByteArray(ySize + uSize + vSize)
+
+            // Copy Y channel
+            yBuffer[nv21, 0, ySize]
+
+            // Copy VU channel (assuming NV21 format)
+            vBuffer[nv21, ySize, vSize]
+            uBuffer[nv21, ySize + vSize, uSize]
+
+            val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)
+            val out = ByteArrayOutputStream()
+            yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 100, out)
+            val jpegBytes = out.toByteArray()
+
+            return BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
+        } else {
+            throw IllegalArgumentException("Unsupported image format")
+        }
+    }
 }

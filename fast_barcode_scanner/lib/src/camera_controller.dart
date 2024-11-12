@@ -158,10 +158,10 @@ class _CameraController implements CameraController {
   /// Curried function for [_onScan]. This ensures that each scan receipt is done
   /// consistently. We log [_lastScanTime] and update the [scannedBarcodes] ValueNotifier
   OnDetectionHandler _buildScanHandler(OnDetectionHandler? onScan) {
-    return (barcodes) {
+    return (barcodes, base64Image) {
       _lastScanTime = DateTime.now();
       scannedBarcodes.value = barcodes;
-      onScan?.call(barcodes);
+      onScan?.call(barcodes, base64Image);
     };
   }
 
@@ -303,7 +303,7 @@ class _CameraController implements CameraController {
     OnDetectionHandler? onScan,
   }) async {
     if (state.isInitialized && !_configuring) {
-      final _scannerConfig = state._scannerConfig!;
+      final scannerConfig = state._scannerConfig!;
       _configuring = true;
 
       try {
@@ -315,7 +315,7 @@ class _CameraController implements CameraController {
           position: position,
         );
 
-        state._scannerConfig = _scannerConfig.copyWith(
+        state._scannerConfig = scannerConfig.copyWith(
           types: types,
           resolution: resolution,
           framerate: framerate,
@@ -345,9 +345,9 @@ class _CameraController implements CameraController {
     }
   }
 
-  void _onDetectHandler(List<Barcode> codes) {
+  void _onDetectHandler(List<Barcode> codes, String base64Image) {
     events.value = ScannerEvent.detected;
-    _onScan?.call(codes);
+    _onScan?.call(codes, base64Image);
   }
 }
 
