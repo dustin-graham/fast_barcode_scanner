@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:fast_barcode_scanner/fast_barcode_scanner.dart';
 import 'package:flutter/material.dart';
@@ -83,8 +84,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
                           child: Text("No image available"),
                         );
                       }
-                      return Image.file(File(image!));
-                    },
+                      return Image.memory(
+                        base64Decode(image!),
+                        fit: BoxFit.cover,
+                      );
+                    }
                   ),
                 ),
                 const SizedBox(height: 20),
