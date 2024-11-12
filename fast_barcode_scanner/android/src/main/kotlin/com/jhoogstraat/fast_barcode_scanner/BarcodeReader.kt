@@ -9,6 +9,7 @@ import android.graphics.ImageFormat
 import android.graphics.Rect
 import android.graphics.YuvImage
 import android.media.Image
+import android.util.Base64
 import android.util.Log
 import android.view.Surface
 import androidx.camera.core.*
@@ -177,8 +178,9 @@ class BarcodeReader(
                     } else if (cameraConfig.mode == DetectionMode.pauseVideo) {
                         stop()
                     }
-                    val file = saveImageToPath(image);
-                    listener(codes, file?.path)
+                    val base64Image =
+                        bitmapToBase64(image, Bitmap.CompressFormat.JPEG);
+                    listener(codes, base64Image)
                 }
             }
         }, OnFailureListener {
@@ -296,6 +298,23 @@ class BarcodeReader(
         }
 
         return imageFile
+    }
+
+    fun bitmapToBase64(
+        image: Image,
+        format: Bitmap.CompressFormat = Bitmap.CompressFormat.PNG
+    ): String {
+        val bitmap = imageToBitmap(image)
+        val outputStream = ByteArrayOutputStream()
+
+        // Compress the bitmap with the specified format (e.g., PNG or JPEG)
+        bitmap.compress(format, 100, outputStream)
+
+        // Get the byte array from the output stream
+        val byteArray = outputStream.toByteArray()
+
+        // Encode the byte array to Base64 string
+        return Base64.encodeToString(byteArray, Base64.DEFAULT)
     }
 
     private fun imageToBitmap(image: Image): Bitmap {
