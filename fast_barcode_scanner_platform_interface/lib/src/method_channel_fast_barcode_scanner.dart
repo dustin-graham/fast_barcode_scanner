@@ -103,7 +103,9 @@ class MethodChannelFastBarcodeScanner extends FastBarcodeScannerPlatform {
     try {
       final imageBytes =
           await _channel.invokeMethod('retrieveImageCache', {'code': code});
-      return imageBytes;
+      return Uint8List.fromList(imageBytes
+          .whereType<int>() // Keep only the integers
+          .toList());
     } on PlatformException catch (e) {
       throw 'Failed to retrieve image: ${e.message}';
     }
