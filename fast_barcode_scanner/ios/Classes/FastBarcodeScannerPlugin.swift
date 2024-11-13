@@ -11,6 +11,8 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
     var picker: ImagePicker?
     var detectionsSink: FlutterEventSink?
 
+    var captureImageDict: [String: [UInt8]?] = [String: [UInt8]?]()
+
     init(commands: FlutterMethodChannel,
          events: FlutterEventChannel,
          factory: PreviewViewFactory
@@ -73,7 +75,9 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
             scanner = AVFoundationBarcodeScanner(barcodeObjectLayerConverter: { barcodes in
                 self.factory.preview?.videoPreviewLayer.transformedMetadataObject(for: barcodes) as? AVMetadataMachineReadableCodeObject
             }) { [unowned self] barcodes in
-                detectionsSink?(barcodes)
+                DispatchQueue.main.async {
+                    self.detectionsSink?(barcodes)
+                }
             }
         } else {
             scanner = VisionBarcodeScanner(cornerPointConverter: { observation in
@@ -94,11 +98,16 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
                     [Int(bottomLeft.x), Int(bottomLeft.y)],
                     [Int(bottomRight.x), Int(bottomRight.y)]
                 ]
-            }, confidence: configuration.confidence, resultHandler: { [unowned self] barcodes in
-                detectionsSink?(barcodes)
-            }, errorHandler: { [unowned self] error in
-                detectionsSink?(error)
-            })
+            }, confidence: configuration.confidence, byteData: nil, captureImageDict: captureImageDict, resultHandler: { [unowned self] barcodes in
+                DispatchQueue.main.async {
+                    self.detectionsSink?(barcodes)
+                }            },
+errorHandler: { [unowned self] error in
+                DispatchQueue.main.async {
+                    self.detectionsSink?(error)
+                }
+            }
+            )
         }
 
         let camera = try Camera(configuration: configuration, scanner: scanner)
@@ -167,17 +176,21 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
         return camera.previewConfiguration
     }
 
-    func analyzeImage(args: Any?, on resultHandler: @escaping (Any?) -> Void) throws {
-        guard #available(iOS 11, *) else {
-            throw ScannerError.minimumTarget
-        }
+    func retrieveImageCache(code: String) throws -> [UInt8]? {
+        return captureImageDict[code] ?? nil
+    }
 
+    func clearImageCache() throws {
+        captureImageDict.removeAll()
+    }
+
+    func analyzeImage(args: Any?, on resultHandler: @escaping (Any?) -> Void) throws {
         let visionResultHandler: BarcodeScanner.ResultHandler = { result in
-            resultHandler(result)
+                resultHandler(result)
         }
 
         let visionErrorHandler: VisionBarcodeScanner.ErrorHandler = { error in
-            resultHandler(error)
+                resultHandler(error)
         }
 
         if let container = args as? [Any] {
@@ -189,7 +202,7 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
                 throw ScannerError.loadingDataFailed
             }
 
-            let scanner = VisionBarcodeScanner(cornerPointConverter: { _ in [] }, confidence: 0.6, resultHandler: visionResultHandler, errorHandler: visionErrorHandler)
+            let scanner = VisionBarcodeScanner(cornerPointConverter: { _ in [] }, confidence: 0.6, byteData: [UInt8](byteBuffer.data), captureImageDict: captureImageDict, resultHandler: visionResultHandler, errorHandler: visionErrorHandler)
             scanner.process(cgImage)
         } else {
             guard
@@ -207,7 +220,7 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
                 }
 
                 self?.picker = nil
-                let scanner = VisionBarcodeScanner(cornerPointConverter: { _ in [] }, confidence: 0.6, resultHandler: visionResultHandler, errorHandler: visionErrorHandler)
+                let scanner = VisionBarcodeScanner(cornerPointConverter: { _ in [] }, confidence: 0.6, byteData: cgImage.toByteArray(), captureImageDict: self?.captureImageDict ?? [String: [UInt8]?](), resultHandler: visionResultHandler, errorHandler: visionErrorHandler)
                 scanner.process(cgImage)
             }
 

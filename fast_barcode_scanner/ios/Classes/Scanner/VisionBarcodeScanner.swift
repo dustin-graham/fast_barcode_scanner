@@ -16,6 +16,8 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
     var cornerPointConverter: VisionBarcodeCornerPointConverter
     var confidence: Double
     var onDetection: (() -> Void)?
+    var byteData: [UInt8]?
+    var captureImageDict: [String: [UInt8]?]
 
     private let output = AVCaptureVideoDataOutput()
     private let outputQueue = DispatchQueue(label: "fast_barcode_scanner.data.serial", qos: .userInitiated,
@@ -70,11 +72,13 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
         }
     }
 
-    init(cornerPointConverter: @escaping VisionBarcodeCornerPointConverter, confidence: Double, resultHandler: @escaping ResultHandler, errorHandler: @escaping ErrorHandler) {
+    init(cornerPointConverter: @escaping VisionBarcodeCornerPointConverter, confidence: Double, byteData: [UInt8]?, captureImageDict: [String: [UInt8]?], resultHandler: @escaping ResultHandler, errorHandler: @escaping ErrorHandler) {
         self.resultHandler = resultHandler
         self.errorHandler = errorHandler
         self.cornerPointConverter = cornerPointConverter
         self.confidence = confidence
+        self.byteData = byteData
+        self.captureImageDict = captureImageDict
         super.init()
 
         output.alwaysDiscardsLateVideoFrames = true
@@ -139,6 +143,12 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
         }
         let uniqueCodes = Array(barcodeDict.values)
 
+        if byteData != nil && !uniqueCodes.isEmpty {
+            print("YEP")
+            print((uniqueCodes.first!)[1] as! String)
+            captureImageDict[(uniqueCodes.first!)[1] as! String] = byteData
+        }
+
         onDetection?()
         resultHandler(uniqueCodes)
     }
@@ -155,5 +165,31 @@ extension VNBarcodeObservation {
                 [Int(bottomLeft.x), Int(bottomLeft.y)]
             ]
         }
+    }
+}
+
+extension CGImage {
+    func toByteArray() -> [UInt8]? {
+        guard let colorSpace = colorSpace,
+              let data = CFDataGetBytePtr(dataProvider?.data) else { return nil }
+
+        let width = self.width
+        let height = self.height
+        let bytesPerPixel = self.bitsPerPixel / self.bitsPerComponent
+        let bytesPerRow = self.bytesPerRow
+
+        var byteArray = [UInt8]()
+        byteArray.reserveCapacity(width * height * bytesPerPixel)
+
+        for y in 0..<height {
+            for x in 0..<width {
+                let offset = (y * bytesPerRow) + (x * bytesPerPixel)
+                for b in 0..<bytesPerPixel {
+                    byteArray.append(data[offset + b])
+                }
+            }
+        }
+
+        return byteArray
     }
 }
