@@ -52,6 +52,8 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
             case "config": response = try updateConfiguration(call: call).asDict
             case "scan": try analyzeImage(args: call.arguments, on: result); return
             case "dispose": dispose()
+            case "retrieveImageCache": response = try retrieveImageCache(code: (call.arguments as! [String: String])["code"]!)
+            case "clearImageCache": try clearImageCache()
             default: response = FlutterMethodNotImplemented
             }
 
@@ -74,7 +76,7 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
         if configuration.apiMode == ApiMode.avFoundation {
             scanner = AVFoundationBarcodeScanner(barcodeObjectLayerConverter: { barcodes in
                 self.factory.preview?.videoPreviewLayer.transformedMetadataObject(for: barcodes) as? AVMetadataMachineReadableCodeObject
-            }) { [unowned self] barcodes in
+            }, onCacheImage: onCacheImage) { [unowned self] barcodes in
                 DispatchQueue.main.async {
                     self.detectionsSink?(barcodes)
                 }
@@ -98,10 +100,11 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
                     [Int(bottomLeft.x), Int(bottomLeft.y)],
                     [Int(bottomRight.x), Int(bottomRight.y)]
                 ]
-            }, confidence: configuration.confidence, byteData: nil, captureImageDict: captureImageDict, resultHandler: { [unowned self] barcodes in
+            }, confidence: configuration.confidence, onCacheImage: onCacheImage, resultHandler: { [unowned self] barcodes in
                 DispatchQueue.main.async {
                     self.detectionsSink?(barcodes)
-                }            },
+                }
+            },
 errorHandler: { [unowned self] error in
                 DispatchQueue.main.async {
                     self.detectionsSink?(error)
@@ -202,7 +205,7 @@ errorHandler: { [unowned self] error in
                 throw ScannerError.loadingDataFailed
             }
 
-            let scanner = VisionBarcodeScanner(cornerPointConverter: { _ in [] }, confidence: 0.6, byteData: [UInt8](byteBuffer.data), captureImageDict: captureImageDict, resultHandler: visionResultHandler, errorHandler: visionErrorHandler)
+            let scanner = VisionBarcodeScanner(cornerPointConverter: { _ in [] }, confidence: 0.6, onCacheImage: onCacheImage, resultHandler: visionResultHandler, errorHandler: visionErrorHandler)
             scanner.process(cgImage)
         } else {
             guard
@@ -220,7 +223,7 @@ errorHandler: { [unowned self] error in
                 }
 
                 self?.picker = nil
-                let scanner = VisionBarcodeScanner(cornerPointConverter: { _ in [] }, confidence: 0.6, byteData: cgImage.toByteArray(), captureImageDict: self?.captureImageDict ?? [String: [UInt8]?](), resultHandler: visionResultHandler, errorHandler: visionErrorHandler)
+                let scanner = VisionBarcodeScanner(cornerPointConverter: { _ in [] }, confidence: 0.6, onCacheImage: self!.onCacheImage, resultHandler: visionResultHandler, errorHandler: visionErrorHandler)
                 scanner.process(cgImage)
             }
 
@@ -233,6 +236,10 @@ errorHandler: { [unowned self] error in
             picker!.show(over: root)
         }
 
+    }
+
+    func onCacheImage(key: String, value: [UInt8]?) {
+        captureImageDict[key] = value
     }
 
     public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {

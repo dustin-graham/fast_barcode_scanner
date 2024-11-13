@@ -17,7 +17,7 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
     var confidence: Double
     var onDetection: (() -> Void)?
     var byteData: [UInt8]?
-    var captureImageDict: [String: [UInt8]?]
+    var onCacheImage: ((String, [UInt8]?) -> Void)
 
     private let output = AVCaptureVideoDataOutput()
     private let outputQueue = DispatchQueue(label: "fast_barcode_scanner.data.serial", qos: .userInitiated,
@@ -72,13 +72,12 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
         }
     }
 
-    init(cornerPointConverter: @escaping VisionBarcodeCornerPointConverter, confidence: Double, byteData: [UInt8]?, captureImageDict: [String: [UInt8]?], resultHandler: @escaping ResultHandler, errorHandler: @escaping ErrorHandler) {
+    init(cornerPointConverter: @escaping VisionBarcodeCornerPointConverter, confidence: Double, onCacheImage: @escaping ((String, [UInt8]?) -> Void), resultHandler: @escaping ResultHandler, errorHandler: @escaping ErrorHandler) {
         self.resultHandler = resultHandler
         self.errorHandler = errorHandler
         self.cornerPointConverter = cornerPointConverter
         self.confidence = confidence
-        self.byteData = byteData
-        self.captureImageDict = captureImageDict
+        self.onCacheImage = onCacheImage
         super.init()
 
         output.alwaysDiscardsLateVideoFrames = true
@@ -108,6 +107,7 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
 
     func process(_ cgImage: CGImage) {
         do {
+            byteData = cgImage.toByteArray()
             try visionSequenceHandler.perform(visionBarcodesRequests, on: cgImage)
         } catch {
             handleVisionRequestUpdate(request: nil, error: error)
@@ -121,7 +121,9 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
             let message = error != nil ? "\(error!)" : "unknownError"
             print("Error scanning image: \(message)")
             let flutterError = FlutterError(code: "UNEXPECTED_SCAN_ERROR", message: message, details: error?._code)
-            errorHandler(flutterError)
+            DispatchQueue.main.async {
+                self.errorHandler(flutterError)
+            }
             return
         }
 
@@ -144,13 +146,13 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
         let uniqueCodes = Array(barcodeDict.values)
 
         if byteData != nil && !uniqueCodes.isEmpty {
-            print("YEP")
-            print((uniqueCodes.first!)[1] as! String)
-            captureImageDict[(uniqueCodes.first!)[1] as! String] = byteData
+            onCacheImage((uniqueCodes.first!)[1] as! String, byteData)
         }
 
         onDetection?()
-        resultHandler(uniqueCodes)
+        DispatchQueue.main.async {
+            self.resultHandler(uniqueCodes)
+        }
     }
 }
 

@@ -5,9 +5,10 @@ typealias AVBarcodeMetadataConverter = (AVMetadataObject) -> AVMetadataMachineRe
 class AVFoundationBarcodeScanner: NSObject, BarcodeScanner, AVCaptureMetadataOutputObjectsDelegate {
     typealias Barcode = AVMetadataMachineReadableCodeObject
 
-    init(barcodeObjectLayerConverter: @escaping AVBarcodeMetadataConverter, resultHandler: @escaping ResultHandler) {
+    init(barcodeObjectLayerConverter: @escaping AVBarcodeMetadataConverter, onCacheImage: @escaping ((String, [UInt8]?) -> Void), resultHandler: @escaping ResultHandler) {
         self.resultHandler = resultHandler
         self.barcodeMetadataConverter = barcodeObjectLayerConverter
+        self.onCacheImage = onCacheImage
     }
 
     // Detections are handled by this function.
@@ -23,11 +24,17 @@ class AVFoundationBarcodeScanner: NSObject, BarcodeScanner, AVCaptureMetadataOut
     // for the Camera.
     var onDetection: (() -> Void)?
 
+    var onCacheImage: ((String, [UInt8]?) -> Void)
+
     private let output = AVCaptureMetadataOutput()
+    private var photoOutput = AVCapturePhotoOutput()
     private let metadataQueue = DispatchQueue(label: "fast_barcode_scanner.avfoundation_scanner.serial")
     private var _session: AVCaptureSession?
     private var _symbologies = [String]()
     private var isPaused = false
+
+    private var capturedImage: [UInt8]?
+    private var isCapturing = false
 
     var symbologies: [String] {
         get { _symbologies }
@@ -56,6 +63,7 @@ class AVFoundationBarcodeScanner: NSObject, BarcodeScanner, AVCaptureMetadataOut
             _session = newValue
             if let session = newValue, session.canAddOutput(output), !session.outputs.contains(output) {
                 session.addOutput(output)
+                session.addOutput(photoOutput)
             }
         }
     }
@@ -96,9 +104,21 @@ class AVFoundationBarcodeScanner: NSObject, BarcodeScanner, AVCaptureMetadataOut
             scannedCodes.append([type, value, nil, transformedCode?.corners.pointList])
         }
 
+        let photoSettings = AVCapturePhotoSettings()
+        if !isCapturing {
+            isCapturing = true
+            photoOutput.capturePhoto(with: photoSettings, delegate: self)
+        }
+
         onDetection?()
 
-        resultHandler(scannedCodes)
+        if !scannedCodes.isEmpty && capturedImage != nil {
+            onCacheImage((scannedCodes.first!)[1] as! String, capturedImage)
+        }
+
+        DispatchQueue.main.async {
+            self.resultHandler(scannedCodes)
+        }
 	}
 }
 
@@ -114,4 +134,15 @@ extension Array where Element == CGPoint {
             ]
         }
     }
+}
+
+extension AVFoundationBarcodeScanner: AVCapturePhotoCaptureDelegate {
+    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+        isCapturing = false
+        guard let imageData = photo.fileDataRepresentation() else {
+            print("Error while generating image from photo capture data.")
+            return
+        }
+        capturedImage = [UInt8](imageData)
+     }
 }
