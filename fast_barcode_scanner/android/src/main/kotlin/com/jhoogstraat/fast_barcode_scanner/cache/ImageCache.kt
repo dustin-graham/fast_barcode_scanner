@@ -1,13 +1,11 @@
-import android.graphics.Bitmap
 import android.util.LruCache
-import java.io.ByteArrayOutputStream
-
 
 class ImageCache {
     // Set up the cache size (for example, 10 MB)
     private val cacheSize = (Runtime.getRuntime().maxMemory() / 8).toInt()
-    private val cache: LruCache<String, Bitmap> = LruCache(cacheSize)
-    private var savedCodes : ArrayList<String> = ArrayList()
+    private val cache: LruCache<String, ByteArray> = LruCache(cacheSize)
+    private var savedCodes: ArrayList<String> = ArrayList()
+
     private object Holder {
         val INSTANCE = ImageCache()
     }
@@ -20,7 +18,10 @@ class ImageCache {
     }
 
     // Store image in cache with barcode as key
-    fun storeImage(image: Bitmap, key: String) {
+    fun storeImage(image: ByteArray?, key: String) {
+        if (image == null) {
+            return
+        }
         cache.put(key, image)
         savedCodes.add(key)
     }
@@ -28,13 +29,7 @@ class ImageCache {
     // Retrieve image from cache by barcode
     fun retrieveImage(code: String): ByteArray? {
         val image = cache.get(code)
-        var byteArray: ByteArray? = null
-        if(image != null){
-            val stream = ByteArrayOutputStream()
-            image.compress(Bitmap.CompressFormat.JPEG, 100, stream)
-            byteArray = stream.toByteArray()
-        }
-        return byteArray
+        return image
     }
 
     fun isImageSaved(code: String): Boolean {

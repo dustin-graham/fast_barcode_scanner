@@ -367,8 +367,7 @@ class Camera(
             val out = ByteArrayOutputStream()
             yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 100, out)
             val jpegBytes = out.toByteArray()
-            val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size);
-            ImageCache.getInstance().storeImage(bitmap, code)
+            ImageCache.getInstance().storeImage(jpegBytes, code)
         } else {
             throw IllegalArgumentException("Unsupported image format")
         }
