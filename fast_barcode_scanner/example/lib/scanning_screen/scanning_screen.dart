@@ -48,6 +48,7 @@ class _ScanningScreenState extends State<ScanningScreen> {
   );
 
   final cam = CameraController();
+  String? currentCode;
 
   @override
   Widget build(BuildContext context) {
@@ -100,15 +101,17 @@ class _ScanningScreenState extends State<ScanningScreen> {
         mode: DetectionMode.continuous,
         position: CameraPosition.back,
         apiMode: widget.apiMode,
-        onScan: (code, image) {
+        onScan: (code) {
           history.addAll(code);
+          currentCode = code.first.value;
         },
         children: [
           if (_scanningOverlayConfig.enabledOverlays
               .contains(ScanningOverlayType.materialOverlay))
             MaterialPreviewOverlay(
-              rectOfInterest: RectOfInterest.wide(), // this can be wide or square
-              onScan: (codes, base64Image) {
+              rectOfInterest: RectOfInterest.wide(),
+              // this can be wide or square
+              onScan: (codes) {
                 // these are codes that only appear within the finder rectangle
               },
               showSensing: true,
@@ -198,7 +201,7 @@ class _ScanningScreenState extends State<ScanningScreen> {
                                       final future = isRunning
                                           ? cam.pauseScanner()
                                           : cam.resumeScanner();
-
+                                      currentCode = null;
                                       future
                                           .then((_) => _scannerRunning.value =
                                               !isRunning)
@@ -230,6 +233,21 @@ class _ScanningScreenState extends State<ScanningScreen> {
                                     'Torch: ${isTorchActive ? 'on' : 'off'}'),
                               ),
                             ),
+                            ElevatedButton(
+                              onPressed: () async {
+                                if (currentCode != null) {
+                                  final image = await cam
+                                      .retrieveImageCache(currentCode!);
+                                  if (image != null && context.mounted) {
+                                    showModalBottomSheet(
+                                        context: context,
+                                        builder: (context) => Image.memory(
+                                            image));
+                                  }
+                                }
+                              },
+                              child: const Text('Get Image Cache'),
+                            )
                           ],
                         ),
                         Column(

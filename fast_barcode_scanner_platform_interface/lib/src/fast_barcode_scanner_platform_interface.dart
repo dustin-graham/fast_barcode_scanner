@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:fast_barcode_scanner_platform_interface/src/types/image_source.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
@@ -7,7 +9,7 @@ import 'types/barcode_type.dart';
 import 'types/preview_configuration.dart';
 
 /// Callback handler method for receiving scanned codes.
-typedef OnDetectionHandler = void Function(List<Barcode>, String);
+typedef OnDetectionHandler = void Function(List<Barcode>);
 
 /// The interface that implementations of fast_barcode_scanner must implement.
 ///
@@ -96,5 +98,12 @@ abstract class FastBarcodeScannerPlatform extends PlatformInterface {
 
   Future<List<Barcode>?> scanImage(ImageSource source) {
     throw UnimplementedError('scanImage() has not been implemented');
+  }
+
+  Future<Uint8List?> retrieveImageCache({required String code}) {
+    throw UnimplementedError('retrieveImageCache() has not been implemented');
+  }
+  Future<void> clearImageCache() {
+    throw UnimplementedError('clearImageCache() has not been implemented');
   }
 }

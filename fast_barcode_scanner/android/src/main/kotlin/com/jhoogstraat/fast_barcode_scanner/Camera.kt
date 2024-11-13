@@ -1,5 +1,6 @@
 package com.jhoogstraat.fast_barcode_scanner
 
+import ImageCache
 import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
@@ -37,7 +38,7 @@ class Camera(
     val activity: Activity,
     val flutterTextureEntry: TextureRegistry.SurfaceTextureEntry,
     args: HashMap<String, Any>,
-    private val listener: (List<Barcode>, String?) -> Unit
+    private val listener: (List<Barcode>) -> Unit
 ) : RequestPermissionsResultListener {
 
     /* Scanner configuration */
@@ -106,9 +107,11 @@ class Camera(
                     } else if (scannerConfiguration.mode == DetectionMode.pauseVideo) {
                         stopCamera()
                     }
-                    val base64Image =
-                        imageToBase64(image, Bitmap.CompressFormat.JPEG);
-                    listener(codes, base64Image)
+                    val code = codes.first().displayValue
+                    if (code != null) {
+                        storeImageToCache(image, code)
+                    }
+                    listener(codes)
                 }
             }
         }) {
@@ -337,25 +340,11 @@ class Camera(
         )
     }
 
-
-    fun imageToBase64(
-        image: Image,
-        format: Bitmap.CompressFormat = Bitmap.CompressFormat.PNG
-    ): String {
-        val bitmap = imageToBitmap(image)
-        val outputStream = ByteArrayOutputStream()
-
-        // Compress the bitmap with the specified format (e.g., PNG or JPEG)
-        bitmap.compress(format, 100, outputStream)
-
-        // Get the byte array from the output stream
-        val byteArray = outputStream.toByteArray()
-
-        // Encode the byte array to Base64 string
-        return Base64.encodeToString(byteArray, Base64.DEFAULT)
-    }
-
-    private fun imageToBitmap(image: Image): Bitmap {
+    private fun storeImageToCache(image: Image, code: String) {
+        val isImageSaved = ImageCache.getInstance().isImageSaved(code)
+        if (isImageSaved) {
+            return
+        }
         if (image.format == ImageFormat.YUV_420_888) {
             val yBuffer = image.planes[0].buffer // Y
             val uBuffer = image.planes[1].buffer // U
@@ -378,8 +367,8 @@ class Camera(
             val out = ByteArrayOutputStream()
             yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 100, out)
             val jpegBytes = out.toByteArray()
-
-            return BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
+            val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size);
+            ImageCache.getInstance().storeImage(bitmap, code)
         } else {
             throw IllegalArgumentException("Unsupported image format")
         }

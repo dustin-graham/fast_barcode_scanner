@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:fast_barcode_scanner_platform_interface/fast_barcode_scanner_platform_interface.dart';
 import 'package:flutter/material.dart';
@@ -111,6 +112,10 @@ abstract class CameraController {
   ///
   /// It is recommended to pause the live scanner before calling this.
   Future<List<Barcode>?> scanImage(ImageSource source);
+
+  Future<Uint8List?> retrieveImageCache(String code);
+
+  Future<void> clearImageCache();
 }
 
 class _CameraController implements CameraController {
@@ -158,10 +163,10 @@ class _CameraController implements CameraController {
   /// Curried function for [_onScan]. This ensures that each scan receipt is done
   /// consistently. We log [_lastScanTime] and update the [scannedBarcodes] ValueNotifier
   OnDetectionHandler _buildScanHandler(OnDetectionHandler? onScan) {
-    return (barcodes, base64Image) {
+    return (barcodes) {
       _lastScanTime = DateTime.now();
       scannedBarcodes.value = barcodes;
-      onScan?.call(barcodes, base64Image);
+      onScan?.call(barcodes);
     };
   }
 
@@ -345,9 +350,25 @@ class _CameraController implements CameraController {
     }
   }
 
-  void _onDetectHandler(List<Barcode> codes, String base64Image) {
+  @override
+  Future<Uint8List?> retrieveImageCache(String code) async {
+    try {
+      return _platform.retrieveImageCache(code: code);
+    } catch (error) {
+      state._error = error;
+      events.value = ScannerEvent.error;
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> clearImageCache() async {
+    await _platform.clearImageCache();
+  }
+
+  void _onDetectHandler(List<Barcode> codes) {
     events.value = ScannerEvent.detected;
-    _onScan?.call(codes, base64Image);
+    _onScan?.call(codes);
   }
 }
 

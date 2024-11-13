@@ -1,5 +1,6 @@
 package com.jhoogstraat.fast_barcode_scanner
 
+import ImageCache
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
@@ -112,6 +113,7 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
                         .addOnFailureListener { it.asFlutterResult(result) }
                     return
                 }
+
                 "scan" -> {
                     scanImage(call.arguments)
                         .addOnSuccessListener { barcodes ->
@@ -122,6 +124,27 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
                         }
                     return
                 }
+
+                "retrieveImageCache" -> {
+                    val code = call.argument<String>("code")
+                    if (code != null) {
+                        val image = ImageCache.getInstance().retrieveImage(code)
+                        if (image != null) {
+                            result.success(image)  // Send the Bitmap back
+                        } else {
+                            result.error("NOT_FOUND", "Image not found", null)
+                        }
+                    } else {
+                        result.error("INVALID_ARGUMENT", "Code is null", null)
+                    }
+                    return
+                }
+
+                "clearImageCache" -> {
+                    ImageCache.getInstance().clearCache()
+                    return
+                }
+
                 else -> {
                     val camera = this.camera ?: throw ScannerException.NotInitialized()
                     when (call.method) {
@@ -132,6 +155,7 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
                         "config" -> response =
                             camera.changeConfiguration(call.arguments as HashMap<String, Any>)
                                 .toMap()
+
                         "torch" -> {
                             camera.toggleTorch()
                                 .addListener(
@@ -140,6 +164,7 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
                                 )
                             return
                         }
+
                         "dispose" -> dispose()
                         else -> result.notImplemented()
                     }
@@ -163,12 +188,14 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
     }
 
     private fun encode(barcodes: List<Barcode>): List<List<*>> {
-        return barcodes.map { listOf(
-            barcodeStringMap[it.format],
-            it.rawValue,
-            it.valueType,
-            buildPointList(it.cornerPoints)
-        ) }
+        return barcodes.map {
+            listOf(
+                barcodeStringMap[it.format],
+                it.rawValue,
+                it.valueType,
+                buildPointList(it.cornerPoints)
+            )
+        }
     }
 
     @SuppressLint("UnsafeOptInUsageError")
@@ -183,11 +210,10 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
             activityBinding.activity,
             pluginBinding.textureRegistry.createSurfaceTexture(),
             configuration
-        ) { barcodes, image ->
+        ) { barcodes ->
             detectionEventSink?.success(
                 mapOf(
                     "barcodes" to encode(barcodes),
-                    "image" to image
                 )
             )
         }
@@ -248,7 +274,12 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
 
                 return pickImageCompleter!!.task.continueWithTask {
                     if (it.result == null) Tasks.forResult(null) else
-                        scanner.process(InputImage.fromFilePath(activityBinding.activity, it.result as Uri))
+                        scanner.process(
+                            InputImage.fromFilePath(
+                                activityBinding.activity,
+                                it.result as Uri
+                            )
+                        )
                 }
             }
         }
@@ -270,6 +301,7 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
                     completer.setException(ScannerException.LoadingFailed(e))
                 }
             }
+
             else -> {
                 completer.setResult(null)
             }

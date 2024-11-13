@@ -16,7 +16,7 @@ dependencies:
     hosted:
       name: fast_barcode_scanner_platform_interface
       url: http://nexus.gojitsu.com:7777
-    version: ^2.0.1
+    version: ^2.0.5
 
 dev_dependencies:
   flutter_test:
