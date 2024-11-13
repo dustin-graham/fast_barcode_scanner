@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:fast_barcode_scanner_platform_interface/src/types/image_source.dart';
 import 'package:flutter/services.dart';
@@ -116,12 +117,18 @@ class MethodChannelFastBarcodeScanner extends FastBarcodeScannerPlatform {
     await _channel.invokeMethod('clearImageCache');
   }
 
-  void _handlePlatformBarcodeEvent(dynamic data) {
+  void _handlePlatformBarcodeEvent(dynamic rawData) {
     // This might fail if the code type is not present in the list of available code types.
     // Barcode init will throw in this case. Ignore this cases and continue as if nothing happened.
     try {
-      final barcodes =
-          (data['barcodes'] as List<dynamic>).map((e) => Barcode(e)).toList();
+      var data = <dynamic>[];
+      if (Platform.isAndroid) {
+        data = rawData['barcodes'];
+      } else if (Platform.isIOS) {
+        data = rawData;
+      }
+
+      final barcodes = data.map((e) => Barcode(e)).toList();
       _onDetectHandler?.call(barcodes);
       // ignore: empty_catches
     } catch (e) {}

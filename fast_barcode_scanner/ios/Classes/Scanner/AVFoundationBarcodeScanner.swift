@@ -108,13 +108,12 @@ class AVFoundationBarcodeScanner: NSObject, BarcodeScanner, AVCaptureMetadataOut
         if !isCapturing {
             isCapturing = true
             photoOutput.capturePhoto(with: photoSettings, delegate: self)
+            if !scannedCodes.isEmpty && capturedImage != nil {
+                onCacheImage((scannedCodes.first!)[1] as! String, capturedImage)
+            }
         }
 
         onDetection?()
-
-        if !scannedCodes.isEmpty && capturedImage != nil {
-            onCacheImage((scannedCodes.first!)[1] as! String, capturedImage)
-        }
 
         DispatchQueue.main.async {
             self.resultHandler(scannedCodes)

@@ -77,9 +77,7 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
             scanner = AVFoundationBarcodeScanner(barcodeObjectLayerConverter: { barcodes in
                 self.factory.preview?.videoPreviewLayer.transformedMetadataObject(for: barcodes) as? AVMetadataMachineReadableCodeObject
             }, onCacheImage: onCacheImage) { [unowned self] barcodes in
-                DispatchQueue.main.async {
-                    self.detectionsSink?(barcodes)
-                }
+                self.detectionsSink?(barcodes)
             }
         } else {
             scanner = VisionBarcodeScanner(cornerPointConverter: { observation in
@@ -101,14 +99,10 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
                     [Int(bottomRight.x), Int(bottomRight.y)]
                 ]
             }, confidence: configuration.confidence, onCacheImage: onCacheImage, resultHandler: { [unowned self] barcodes in
-                DispatchQueue.main.async {
-                    self.detectionsSink?(barcodes)
-                }
+                self.detectionsSink?(barcodes)
             },
 errorHandler: { [unowned self] error in
-                DispatchQueue.main.async {
-                    self.detectionsSink?(error)
-                }
+                self.detectionsSink?(error)
             }
             )
         }
