@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:fast_barcode_scanner/fast_barcode_scanner.dart';
 import 'package:fast_barcode_scanner_example/scanning_screen/scanning_overlay_config.dart';
 import 'package:flutter/material.dart';
@@ -236,13 +238,14 @@ class _ScanningScreenState extends State<ScanningScreen> {
                             ElevatedButton(
                               onPressed: () async {
                                 if (currentCode != null) {
-                                  final image = await cam
+                                  final path = await cam
                                       .retrieveImageCache(currentCode!);
-                                  if (image != null && context.mounted) {
+                                  if (path != null && context.mounted) {
                                     showModalBottomSheet(
                                         context: context,
-                                        builder: (context) => Image.memory(
-                                            image));
+                                        builder: (context) => Image.file(
+                                              File(path),
+                                            ));
                                   }
                                 }
                               },

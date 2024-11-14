@@ -99,7 +99,7 @@ class MethodChannelFastBarcodeScanner extends FastBarcodeScannerPlatform {
   }
 
   @override
-  Future<Uint8List?> retrieveImageCache({required String code}) async {
+  Future<String?> retrieveImageCache({required String code}) async {
     try {
       final imageBytes =
           await _channel.invokeMethod('retrieveImageCache', {'code': code});
