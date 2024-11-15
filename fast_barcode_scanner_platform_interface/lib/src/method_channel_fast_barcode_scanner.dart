@@ -99,10 +99,10 @@ class MethodChannelFastBarcodeScanner extends FastBarcodeScannerPlatform {
   }
 
   @override
-  Future<String?> retrieveImageCache({required String code}) async {
+  Future<String?> retrieveCachedImage({required String code}) async {
     try {
       final imageBytes =
-          await _channel.invokeMethod('retrieveImageCache', {'code': code});
+          await _channel.invokeMethod('retrieveCachedImage', {'code': code});
       return imageBytes;
     } on PlatformException catch (e) {
       throw 'Failed to retrieve image: ${e.message}';
@@ -110,8 +110,8 @@ class MethodChannelFastBarcodeScanner extends FastBarcodeScannerPlatform {
   }
 
   @override
-  Future<void> clearImageCache() async {
-    await _channel.invokeMethod('clearImageCache');
+  Future<void> clearCachedImage() async {
+    await _channel.invokeMethod('clearCachedImage');
   }
 
   void _handlePlatformBarcodeEvent(dynamic data) {

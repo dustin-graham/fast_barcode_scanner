@@ -34,7 +34,7 @@ class MLKitBarcodeScanner(
                     successListener.onSuccess(barcodes, mediaImage)
                 }
                 .addOnFailureListener(failureListener)
-                .addOnCompleteListener { imageProxy.close() }
+                .addOnCompleteListener {  }
         }
     }
 }

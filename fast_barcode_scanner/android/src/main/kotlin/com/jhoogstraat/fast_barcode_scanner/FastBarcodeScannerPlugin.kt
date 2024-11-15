@@ -128,7 +128,7 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
                     return
                 }
 
-                "retrieveImageCache" -> {
+                "retrieveCachedImage" -> {
                     val code = call.argument<String>("code")
                     if (code != null) {
                         val image = ImageHelper.getInstance().retrieveImagePath(code)
@@ -143,7 +143,7 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
                     return
                 }
 
-                "clearImageCache" -> {
+                "clearCachedImage" -> {
                     if (context != null) {
                         ImageHelper.getInstance().clearCache(context!!)
                     }

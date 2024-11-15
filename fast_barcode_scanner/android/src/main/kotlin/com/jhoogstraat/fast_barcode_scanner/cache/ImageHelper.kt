@@ -3,6 +3,10 @@ import android.graphics.ImageFormat
 import android.graphics.Rect
 import android.graphics.YuvImage
 import android.media.Image
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -35,7 +39,6 @@ class ImageHelper {
             }
 
             imageFile = File.createTempFile(key, ".jpeg", barcodeDirectory)
-            imageFile.deleteOnExit()
         } catch (e: IOException) {
             throw RuntimeException(e)
         }
@@ -68,35 +71,40 @@ class ImageHelper {
         }
     }
 
-    fun storeImageToCache(image: Image, code: String, context: Context) {
+    suspend fun storeImageToCache(image: Image, code: String, context: Context) {
         if (isImageSaved(code)) {
+            image.close()
             return
         }
         if (image.format == ImageFormat.YUV_420_888) {
-            val yBuffer = image.planes[0].buffer // Y
-            val uBuffer = image.planes[1].buffer // U
-            val vBuffer = image.planes[2].buffer // V
+            withContext(Dispatchers.IO) {
+                image.use { image ->
+                    val yBuffer = image.planes[0].buffer // Y
+                    val uBuffer = image.planes[1].buffer // U
+                    val vBuffer = image.planes[2].buffer // V
 
-            val ySize = yBuffer.remaining()
-            val uSize = uBuffer.remaining()
-            val vSize = vBuffer.remaining()
+                    val ySize = yBuffer.remaining()
+                    val uSize = uBuffer.remaining()
+                    val vSize = vBuffer.remaining()
 
-            val nv21 = ByteArray(ySize + uSize + vSize)
+                    val nv21 = ByteArray(ySize + uSize + vSize)
 
-            // Copy Y channel
-            yBuffer[nv21, 0, ySize]
+                    // Copy Y channel
+                    yBuffer[nv21, 0, ySize]
 
-            // Copy VU channel (assuming NV21 format)
-            vBuffer[nv21, ySize, vSize]
-            uBuffer[nv21, ySize + vSize, uSize]
+                    // Copy VU channel (assuming NV21 format)
+                    vBuffer[nv21, ySize, vSize]
+                    uBuffer[nv21, ySize + vSize, uSize]
 
-            val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)
-            val out = ByteArrayOutputStream()
-            yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 100, out)
-            val jpegBytes = out.toByteArray()
-            storeImage(jpegBytes, code, context)
+                    val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)
+                    val out = ByteArrayOutputStream()
+                    yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 100, out)
+                    val jpegBytes = out.toByteArray()
+                    storeImage(jpegBytes, code, context)
+                }
+            }
         } else {
+            image.close()
             throw IllegalArgumentException("Unsupported image format")
         }
-    }
-}
+    }}

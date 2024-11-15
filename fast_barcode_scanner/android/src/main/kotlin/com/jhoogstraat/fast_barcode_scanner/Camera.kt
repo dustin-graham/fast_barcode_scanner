@@ -23,6 +23,9 @@ import com.jhoogstraat.fast_barcode_scanner.scanner.OnDetectedListener
 import com.jhoogstraat.fast_barcode_scanner.types.*
 import io.flutter.plugin.common.PluginRegistry.RequestPermissionsResultListener
 import io.flutter.view.TextureRegistry
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -102,9 +105,12 @@ class Camera(
                     }
                     val code = codes.first().displayValue
                     if (code != null) {
-                        ImageHelper.getInstance().storeImageToCache(image, code, activity.applicationContext)
+                        CoroutineScope(Dispatchers.Main).launch {
+                            ImageHelper.getInstance()
+                                .storeImageToCache(image, code, activity.applicationContext)
+                            listener(codes)
+                        }
                     }
-                    listener(codes)
                 }
             }
         }) {
