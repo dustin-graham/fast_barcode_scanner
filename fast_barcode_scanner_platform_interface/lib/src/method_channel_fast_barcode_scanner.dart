@@ -118,8 +118,7 @@ class MethodChannelFastBarcodeScanner extends FastBarcodeScannerPlatform {
     // This might fail if the code type is not present in the list of available code types.
     // Barcode init will throw in this case. Ignore this cases and continue as if nothing happened.
     try {
-      final barcodes =
-          (data['barcodes'] as List<dynamic>).map((e) => Barcode(e)).toList();
+      final barcodes = (data as List<dynamic>).map((e) => Barcode(e)).toList();
       _onDetectHandler?.call(barcodes);
       // ignore: empty_catches
     } catch (e) {}
