@@ -216,11 +216,7 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
             pluginBinding.textureRegistry.createSurfaceTexture(),
             configuration
         ) { barcodes ->
-            detectionEventSink?.success(
-                mapOf(
-                    "barcodes" to encode(barcodes),
-                )
-            )
+            detectionEventSink?.success(encode(barcodes))
         }
 
         this.camera = camera

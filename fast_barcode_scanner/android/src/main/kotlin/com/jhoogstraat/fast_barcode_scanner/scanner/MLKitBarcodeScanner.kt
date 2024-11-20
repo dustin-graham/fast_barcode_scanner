@@ -11,7 +11,7 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 
 interface OnDetectedListener<T> {
-    fun onSuccess(codes: T, image: Image)
+    fun onSuccess(codes: T, imageProxy: ImageProxy)
 }
 
 class MLKitBarcodeScanner(
@@ -25,16 +25,17 @@ class MLKitBarcodeScanner(
     override fun analyze(imageProxy: ImageProxy) {
         val mediaImage = imageProxy.image
         if (mediaImage != null) {
-            val inputImage =
-                InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-            scanner.process(
-                inputImage
-            )
+            val inputImage = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+            scanner.process(inputImage)
                 .addOnSuccessListener { barcodes ->
-                    successListener.onSuccess(barcodes, mediaImage)
+                    successListener.onSuccess(barcodes, imageProxy)
                 }
-                .addOnFailureListener(failureListener)
-                .addOnCompleteListener {  }
+                .addOnFailureListener { exception ->
+                    failureListener.onFailure(exception)
+                    imageProxy.close()
+                }
+        } else {
+            imageProxy.close()
         }
     }
 }

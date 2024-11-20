@@ -73,15 +73,14 @@ class ImageHelper {
 
     suspend fun storeImageToCache(image: Image, code: String, context: Context) {
         if (isImageSaved(code)) {
-            image.close()
             return
         }
         if (image.format == ImageFormat.YUV_420_888) {
             withContext(Dispatchers.IO) {
-                image.use { image ->
-                    val yBuffer = image.planes[0].buffer // Y
-                    val uBuffer = image.planes[1].buffer // U
-                    val vBuffer = image.planes[2].buffer // V
+                image.use { img ->
+                    val yBuffer = img.planes[0].buffer // Y
+                    val uBuffer = img.planes[1].buffer // U
+                    val vBuffer = img.planes[2].buffer // V
 
                     val ySize = yBuffer.remaining()
                     val uSize = uBuffer.remaining()
@@ -96,15 +95,15 @@ class ImageHelper {
                     vBuffer[nv21, ySize, vSize]
                     uBuffer[nv21, ySize + vSize, uSize]
 
-                    val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)
+                    val yuvImage = YuvImage(nv21, ImageFormat.NV21, img.width, img.height, null)
                     val out = ByteArrayOutputStream()
-                    yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 100, out)
+                    yuvImage.compressToJpeg(Rect(0, 0, img.width, img.height), 100, out)
                     val jpegBytes = out.toByteArray()
                     storeImage(jpegBytes, code, context)
                 }
             }
         } else {
-            image.close()
             throw IllegalArgumentException("Unsupported image format")
         }
-    }}
+    }
+}

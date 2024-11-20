@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.media.Image
 import android.util.Log
 import android.view.Surface
+import androidx.annotation.OptIn
 import androidx.camera.core.*
 import androidx.camera.core.Camera
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -96,22 +97,30 @@ class Camera(
             .build()
 
         barcodeScanner = MLKitBarcodeScanner(options, object : OnDetectedListener<List<Barcode>> {
-            override fun onSuccess(codes: List<Barcode>, image: Image) {
-                if (codes.isNotEmpty()) {
-                    if (scannerConfiguration.mode == DetectionMode.pauseDetection) {
-                        stopDetector()
-                    } else if (scannerConfiguration.mode == DetectionMode.pauseVideo) {
-                        stopCamera()
-                    }
-                    val code = codes.first().displayValue
-                    if (code != null) {
-                        CoroutineScope(Dispatchers.Main).launch {
+            @OptIn(ExperimentalGetImage::class)
+            override fun onSuccess(codes: List<Barcode>, imageProxy: ImageProxy) {
+                CoroutineScope(Dispatchers.Main).launch {
+                    if (codes.isNotEmpty()) {
+                        if (scannerConfiguration.mode == DetectionMode.pauseDetection) {
+                            stopDetector()
+                        } else if (scannerConfiguration.mode == DetectionMode.pauseVideo) {
+                            stopCamera()
+                        }
+                        val code = codes.first().displayValue
+                        if (code != null) {
                             ImageHelper.getInstance()
-                                .storeImageToCache(image, code, activity.applicationContext)
+                                .storeImageToCache(
+                                    imageProxy.image!!,
+                                    code,
+                                    activity.applicationContext
+                                )
                             listener(codes)
                         }
                     }
+                    imageProxy.close()
                 }
+
+
             }
         }) {
             Log.e(TAG, "Error in MLKit", it)

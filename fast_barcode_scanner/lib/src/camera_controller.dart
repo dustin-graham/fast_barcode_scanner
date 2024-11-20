@@ -351,7 +351,7 @@ class _CameraController implements CameraController {
   @override
   Future<String?> retrieveImageCache(String code) async {
     try {
-      return _platform.retrieveImageCache(code: code);
+      return _platform.retrieveCachedImage(code: code);
     } catch (error) {
       state._error = error;
       events.value = ScannerEvent.error;
@@ -361,7 +361,7 @@ class _CameraController implements CameraController {
 
   @override
   Future<void> clearImageCache() async {
-    await _platform.clearImageCache();
+    await _platform.clearCachedImage();
   }
 
   void _onDetectHandler(List<Barcode> codes) {
