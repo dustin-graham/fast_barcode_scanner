@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:fast_barcode_scanner_platform_interface/fast_barcode_scanner_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -111,6 +110,10 @@ abstract class CameraController {
   ///
   /// It is recommended to pause the live scanner before calling this.
   Future<List<Barcode>?> scanImage(ImageSource source);
+
+  Future<String?> retrieveCachedImage(String code);
+
+  Future<void> clearCachedImage();
 }
 
 class _CameraController implements CameraController {
@@ -215,6 +218,7 @@ class _CameraController implements CameraController {
   Future<void> dispose() async {
     try {
       await _platform.dispose();
+      await clearCachedImage();
       state._scannerConfig = null;
       state._previewConfig = null;
       state._torch = false;
@@ -303,7 +307,7 @@ class _CameraController implements CameraController {
     OnDetectionHandler? onScan,
   }) async {
     if (state.isInitialized && !_configuring) {
-      final _scannerConfig = state._scannerConfig!;
+      final scannerConfig = state._scannerConfig!;
       _configuring = true;
 
       try {
@@ -315,7 +319,7 @@ class _CameraController implements CameraController {
           position: position,
         );
 
-        state._scannerConfig = _scannerConfig.copyWith(
+        state._scannerConfig = scannerConfig.copyWith(
           types: types,
           resolution: resolution,
           framerate: framerate,
@@ -343,6 +347,22 @@ class _CameraController implements CameraController {
       events.value = ScannerEvent.error;
       rethrow;
     }
+  }
+
+  @override
+  Future<String?> retrieveCachedImage(String code) async {
+    try {
+      return _platform.retrieveCachedImage(code: code);
+    } catch (error) {
+      state._error = error;
+      events.value = ScannerEvent.error;
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> clearCachedImage() async {
+    await _platform.clearCachedImage();
   }
 
   void _onDetectHandler(List<Barcode> codes) {

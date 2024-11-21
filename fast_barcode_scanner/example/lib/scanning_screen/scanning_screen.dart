@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:fast_barcode_scanner/fast_barcode_scanner.dart';
 import 'package:fast_barcode_scanner_example/scanning_screen/scanning_overlay_config.dart';
 import 'package:flutter/material.dart';
@@ -48,6 +50,7 @@ class _ScanningScreenState extends State<ScanningScreen> {
   );
 
   final cam = CameraController();
+  String? currentCode;
 
   @override
   Widget build(BuildContext context) {
@@ -102,12 +105,14 @@ class _ScanningScreenState extends State<ScanningScreen> {
         apiMode: widget.apiMode,
         onScan: (code) {
           history.addAll(code);
+          currentCode = code.first.value;
         },
         children: [
           if (_scanningOverlayConfig.enabledOverlays
               .contains(ScanningOverlayType.materialOverlay))
             MaterialPreviewOverlay(
-              rectOfInterest: RectOfInterest.wide(), // this can be wide or square
+              rectOfInterest: RectOfInterest.wide(),
+              // this can be wide or square
               onScan: (codes) {
                 // these are codes that only appear within the finder rectangle
               },
@@ -198,7 +203,7 @@ class _ScanningScreenState extends State<ScanningScreen> {
                                       final future = isRunning
                                           ? cam.pauseScanner()
                                           : cam.resumeScanner();
-
+                                      currentCode = null;
                                       future
                                           .then((_) => _scannerRunning.value =
                                               !isRunning)
@@ -230,6 +235,22 @@ class _ScanningScreenState extends State<ScanningScreen> {
                                     'Torch: ${isTorchActive ? 'on' : 'off'}'),
                               ),
                             ),
+                            ElevatedButton(
+                              onPressed: () async {
+                                if (currentCode != null) {
+                                  final path = await cam
+                                      .retrieveCachedImage(currentCode!);
+                                  if (path != null && context.mounted) {
+                                    showModalBottomSheet(
+                                        context: context,
+                                        builder: (context) => Image.file(
+                                              File(path),
+                                            ));
+                                  }
+                                }
+                              },
+                              child: const Text('Get Image Cache'),
+                            )
                           ],
                         ),
                         Column(

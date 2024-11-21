@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:fast_barcode_scanner_platform_interface/src/types/image_source.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
@@ -96,5 +98,12 @@ abstract class FastBarcodeScannerPlatform extends PlatformInterface {
 
   Future<List<Barcode>?> scanImage(ImageSource source) {
     throw UnimplementedError('scanImage() has not been implemented');
+  }
+
+  Future<String?> retrieveCachedImage({required String code}) {
+    throw UnimplementedError('retrieveCachedImage() has not been implemented');
+  }
+  Future<void> clearCachedImage() {
+    throw UnimplementedError('clearCachedImage() has not been implemented');
   }
 }

@@ -98,6 +98,22 @@ class MethodChannelFastBarcodeScanner extends FastBarcodeScannerPlatform {
     return response?.map((e) => Barcode(e as List<dynamic>)).toList();
   }
 
+  @override
+  Future<String?> retrieveCachedImage({required String code}) async {
+    try {
+      final imageBytes =
+          await _channel.invokeMethod('retrieveCachedImage', {'code': code});
+      return imageBytes;
+    } on PlatformException catch (e) {
+      throw 'Failed to retrieve image: ${e.message}';
+    }
+  }
+
+  @override
+  Future<void> clearCachedImage() async {
+    await _channel.invokeMethod('clearCachedImage');
+  }
+
   void _handlePlatformBarcodeEvent(dynamic data) {
     // This might fail if the code type is not present in the list of available code types.
     // Barcode init will throw in this case. Ignore this cases and continue as if nothing happened.

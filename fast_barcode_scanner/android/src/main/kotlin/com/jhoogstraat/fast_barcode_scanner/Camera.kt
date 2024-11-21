@@ -1,10 +1,13 @@
 package com.jhoogstraat.fast_barcode_scanner
 
+import ImageHelper
 import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
+import android.media.Image
 import android.util.Log
 import android.view.Surface
+import androidx.annotation.OptIn
 import androidx.camera.core.*
 import androidx.camera.core.Camera
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -17,9 +20,13 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.jhoogstraat.fast_barcode_scanner.scanner.MLKitBarcodeScanner
+import com.jhoogstraat.fast_barcode_scanner.scanner.OnDetectedListener
 import com.jhoogstraat.fast_barcode_scanner.types.*
 import io.flutter.plugin.common.PluginRegistry.RequestPermissionsResultListener
 import io.flutter.view.TextureRegistry
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -89,19 +96,35 @@ class Camera(
             .setBarcodeFormats(0, *scannerConfiguration.formats)
             .build()
 
-        barcodeScanner = MLKitBarcodeScanner(options, { codes ->
-            if (codes.isNotEmpty()) {
-                if (scannerConfiguration.mode == DetectionMode.pauseDetection) {
-                    stopDetector()
-                } else if (scannerConfiguration.mode == DetectionMode.pauseVideo) {
-                    stopCamera()
+        barcodeScanner = MLKitBarcodeScanner(options, object : OnDetectedListener<List<Barcode>> {
+            @OptIn(ExperimentalGetImage::class)
+            override fun onSuccess(codes: List<Barcode>, imageProxy: ImageProxy) {
+                CoroutineScope(Dispatchers.Main).launch {
+                    if (codes.isNotEmpty()) {
+                        if (scannerConfiguration.mode == DetectionMode.pauseDetection) {
+                            stopDetector()
+                        } else if (scannerConfiguration.mode == DetectionMode.pauseVideo) {
+                            stopCamera()
+                        }
+                        val code = codes.first().displayValue
+                        if (code != null) {
+                            ImageHelper.getInstance()
+                                .storeImageToCache(
+                                    imageProxy.image!!,
+                                    code,
+                                    activity.applicationContext
+                                )
+                            listener(codes)
+                        }
+                    }
+                    imageProxy.close()
                 }
 
-                listener(codes)
+
             }
-        }, {
-            Log.e(TAG, "Error in Scanner", it)
-        })
+        }) {
+            Log.e(TAG, "Error in MLKit", it)
+        }
 
         // Create Camera Thread
         cameraExecutor = Executors.newSingleThreadExecutor()
@@ -324,5 +347,6 @@ class Camera(
             analysisHeight = analysisRes.height
         )
     }
+
 
 }
