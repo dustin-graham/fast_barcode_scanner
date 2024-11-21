@@ -111,9 +111,9 @@ abstract class CameraController {
   /// It is recommended to pause the live scanner before calling this.
   Future<List<Barcode>?> scanImage(ImageSource source);
 
-  Future<String?> retrieveImageCache(String code);
+  Future<String?> retrieveCachedImage(String code);
 
-  Future<void> clearImageCache();
+  Future<void> clearCachedImage();
 }
 
 class _CameraController implements CameraController {
@@ -349,7 +349,7 @@ class _CameraController implements CameraController {
   }
 
   @override
-  Future<String?> retrieveImageCache(String code) async {
+  Future<String?> retrieveCachedImage(String code) async {
     try {
       return _platform.retrieveCachedImage(code: code);
     } catch (error) {
@@ -360,7 +360,7 @@ class _CameraController implements CameraController {
   }
 
   @override
-  Future<void> clearImageCache() async {
+  Future<void> clearCachedImage() async {
     await _platform.clearCachedImage();
   }
 

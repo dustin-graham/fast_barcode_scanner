@@ -239,7 +239,7 @@ class _ScanningScreenState extends State<ScanningScreen> {
                               onPressed: () async {
                                 if (currentCode != null) {
                                   final path = await cam
-                                      .retrieveImageCache(currentCode!);
+                                      .retrieveCachedImage(currentCode!);
                                   if (path != null && context.mounted) {
                                     showModalBottomSheet(
                                         context: context,
