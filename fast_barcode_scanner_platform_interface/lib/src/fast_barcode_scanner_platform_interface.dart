@@ -100,10 +100,10 @@ abstract class FastBarcodeScannerPlatform extends PlatformInterface {
     throw UnimplementedError('scanImage() has not been implemented');
   }
 
-  Future<Uint8List?> retrieveImageCache({required String code}) {
-    throw UnimplementedError('retrieveImageCache() has not been implemented');
+  Future<String?> retrieveCachedImage({required String code}) {
+    throw UnimplementedError('retrieveCachedImage() has not been implemented');
   }
-  Future<void> clearImageCache() {
-    throw UnimplementedError('clearImageCache() has not been implemented');
+  Future<void> clearCachedImage() {
+    throw UnimplementedError('clearCachedImage() has not been implemented');
   }
 }

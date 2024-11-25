@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
-
 import 'package:fast_barcode_scanner_platform_interface/fast_barcode_scanner_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -113,9 +111,9 @@ abstract class CameraController {
   /// It is recommended to pause the live scanner before calling this.
   Future<List<Barcode>?> scanImage(ImageSource source);
 
-  Future<Uint8List?> retrieveImageCache(String code);
+  Future<String?> retrieveCachedImage(String code);
 
-  Future<void> clearImageCache();
+  Future<void> clearCachedImage();
 }
 
 class _CameraController implements CameraController {
@@ -220,6 +218,7 @@ class _CameraController implements CameraController {
   Future<void> dispose() async {
     try {
       await _platform.dispose();
+      await clearCachedImage();
       state._scannerConfig = null;
       state._previewConfig = null;
       state._torch = false;
@@ -351,9 +350,9 @@ class _CameraController implements CameraController {
   }
 
   @override
-  Future<Uint8List?> retrieveImageCache(String code) async {
+  Future<String?> retrieveCachedImage(String code) async {
     try {
-      return _platform.retrieveImageCache(code: code);
+      return _platform.retrieveCachedImage(code: code);
     } catch (error) {
       state._error = error;
       events.value = ScannerEvent.error;
@@ -362,8 +361,8 @@ class _CameraController implements CameraController {
   }
 
   @override
-  Future<void> clearImageCache() async {
-    await _platform.clearImageCache();
+  Future<void> clearCachedImage() async {
+    await _platform.clearCachedImage();
   }
 
   void _onDetectHandler(List<Barcode> codes) {

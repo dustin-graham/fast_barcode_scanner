@@ -1,18 +1,13 @@
 package com.jhoogstraat.fast_barcode_scanner
 
-import ImageCache
+import ImageHelper
 import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.ImageFormat
-import android.graphics.Rect
-import android.graphics.YuvImage
 import android.media.Image
-import android.util.Base64
 import android.util.Log
 import android.view.Surface
+import androidx.annotation.OptIn
 import androidx.camera.core.*
 import androidx.camera.core.Camera
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -29,7 +24,9 @@ import com.jhoogstraat.fast_barcode_scanner.scanner.OnDetectedListener
 import com.jhoogstraat.fast_barcode_scanner.types.*
 import io.flutter.plugin.common.PluginRegistry.RequestPermissionsResultListener
 import io.flutter.view.TextureRegistry
-import java.io.ByteArrayOutputStream
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -100,19 +97,30 @@ class Camera(
             .build()
 
         barcodeScanner = MLKitBarcodeScanner(options, object : OnDetectedListener<List<Barcode>> {
-            override fun onSuccess(codes: List<Barcode>, image: Image) {
-                if (codes.isNotEmpty()) {
-                    if (scannerConfiguration.mode == DetectionMode.pauseDetection) {
-                        stopDetector()
-                    } else if (scannerConfiguration.mode == DetectionMode.pauseVideo) {
-                        stopCamera()
+            @OptIn(ExperimentalGetImage::class)
+            override fun onSuccess(codes: List<Barcode>, imageProxy: ImageProxy) {
+                CoroutineScope(Dispatchers.Main).launch {
+                    if (codes.isNotEmpty()) {
+                        if (scannerConfiguration.mode == DetectionMode.pauseDetection) {
+                            stopDetector()
+                        } else if (scannerConfiguration.mode == DetectionMode.pauseVideo) {
+                            stopCamera()
+                        }
+                        val code = codes.first().displayValue
+                        if (code != null) {
+                            ImageHelper.getInstance()
+                                .storeImageToCache(
+                                    imageProxy.image!!,
+                                    code,
+                                    activity.applicationContext
+                                )
+                            listener(codes)
+                        }
                     }
-                    val code = codes.first().displayValue
-                    if (code != null) {
-                        storeImageToCache(image, code)
-                    }
-                    listener(codes)
+                    imageProxy.close()
                 }
+
+
             }
         }) {
             Log.e(TAG, "Error in MLKit", it)
@@ -340,36 +348,5 @@ class Camera(
         )
     }
 
-    private fun storeImageToCache(image: Image, code: String) {
-        val isImageSaved = ImageCache.getInstance().isImageSaved(code)
-        if (isImageSaved) {
-            return
-        }
-        if (image.format == ImageFormat.YUV_420_888) {
-            val yBuffer = image.planes[0].buffer // Y
-            val uBuffer = image.planes[1].buffer // U
-            val vBuffer = image.planes[2].buffer // V
 
-            val ySize = yBuffer.remaining()
-            val uSize = uBuffer.remaining()
-            val vSize = vBuffer.remaining()
-
-            val nv21 = ByteArray(ySize + uSize + vSize)
-
-            // Copy Y channel
-            yBuffer[nv21, 0, ySize]
-
-            // Copy VU channel (assuming NV21 format)
-            vBuffer[nv21, ySize, vSize]
-            uBuffer[nv21, ySize + vSize, uSize]
-
-            val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)
-            val out = ByteArrayOutputStream()
-            yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 100, out)
-            val jpegBytes = out.toByteArray()
-            ImageCache.getInstance().storeImage(jpegBytes, code)
-        } else {
-            throw IllegalArgumentException("Unsupported image format")
-        }
-    }
 }

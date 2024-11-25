@@ -100,35 +100,26 @@ class MethodChannelFastBarcodeScanner extends FastBarcodeScannerPlatform {
   }
 
   @override
-  Future<Uint8List?> retrieveImageCache({required String code}) async {
+  Future<String?> retrieveCachedImagePath({required String code}) async {
     try {
-      final imageBytes =
-          await _channel.invokeMethod('retrieveImageCache', {'code': code});
-      return Uint8List.fromList(imageBytes
-          .whereType<int>() // Keep only the integers
-          .toList());
+      final path =
+          await _channel.invokeMethod('retrieveCachedImage', {'code': code});
+      return path;
     } on PlatformException catch (e) {
-      throw 'Failed to retrieve image: ${e.message}';
+      throw 'Failed to retrieve image path: ${e.message}';
     }
   }
 
   @override
-  Future<void> clearImageCache() async {
-    await _channel.invokeMethod('clearImageCache');
+  Future<void> clearCachedImage() async {
+    await _channel.invokeMethod('clearCachedImage');
   }
 
   void _handlePlatformBarcodeEvent(dynamic rawData) {
     // This might fail if the code type is not present in the list of available code types.
     // Barcode init will throw in this case. Ignore this cases and continue as if nothing happened.
     try {
-      var data = <dynamic>[];
-      if (Platform.isAndroid) {
-        data = rawData['barcodes'];
-      } else if (Platform.isIOS) {
-        data = rawData;
-      }
-
-      final barcodes = data.map((e) => Barcode(e)).toList();
+      final barcodes = (data as List<dynamic>).map((e) => Barcode(e)).toList();
       _onDetectHandler?.call(barcodes);
       // ignore: empty_catches
     } catch (e) {}

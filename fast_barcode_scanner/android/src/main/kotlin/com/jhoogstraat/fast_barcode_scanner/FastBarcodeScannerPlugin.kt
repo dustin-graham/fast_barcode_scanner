@@ -1,12 +1,12 @@
 package com.jhoogstraat.fast_barcode_scanner
 
-import ImageCache
+import ImageHelper
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.graphics.Point
-import android.media.Image
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.annotation.NonNull
@@ -45,6 +45,7 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
     private var pluginBinding: FlutterPlugin.FlutterPluginBinding? = null
     private var activityBinding: ActivityPluginBinding? = null
     private var camera: Camera? = null
+    private var context: Context? = null
 
     override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         commandChannel = MethodChannel(
@@ -57,6 +58,8 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
         )
 
         pluginBinding = flutterPluginBinding
+        context = flutterPluginBinding.applicationContext
+
     }
 
     override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
@@ -67,7 +70,7 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
         commandChannel!!.setMethodCallHandler(this)
         detectionChannel!!.setStreamHandler(this)
         activityBinding = binding
-
+        context = null
         binding.addActivityResultListener(this)
     }
 
@@ -125,12 +128,12 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
                     return
                 }
 
-                "retrieveImageCache" -> {
+                "retrieveCachedImage" -> {
                     val code = call.argument<String>("code")
                     if (code != null) {
-                        val image = ImageCache.getInstance().retrieveImage(code)
+                        val image = ImageHelper.getInstance().retrieveImagePath(code)
                         if (image != null) {
-                            result.success(image)  // Send the Bitmap back
+                            result.success(image)  // Send image path to Flutter
                         } else {
                             result.error("NOT_FOUND", "Image not found", null)
                         }
@@ -140,8 +143,10 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
                     return
                 }
 
-                "clearImageCache" -> {
-                    ImageCache.getInstance().clearCache()
+                "clearCachedImage" -> {
+                    if (context != null) {
+                        ImageHelper.getInstance().clearCache(context!!)
+                    }
                     return
                 }
 
@@ -211,11 +216,7 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
             pluginBinding.textureRegistry.createSurfaceTexture(),
             configuration
         ) { barcodes ->
-            detectionEventSink?.success(
-                mapOf(
-                    "barcodes" to encode(barcodes),
-                )
-            )
+            detectionEventSink?.success(encode(barcodes))
         }
 
         this.camera = camera
