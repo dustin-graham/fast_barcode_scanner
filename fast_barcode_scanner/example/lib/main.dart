@@ -136,11 +136,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 final cam = CameraController();
 
                 if (currentCode != null) {
-                  final image = await cam.retrieveCachedImage(currentCode!);
-                  if (image != null && context.mounted) {
+                  final imagePath =
+                      (await cam.retrieveCachedImagePath(currentCode!));
+                  if (imagePath != null &&
+                      context.mounted &&
+                      File(imagePath).existsSync()) {
                     showModalBottomSheet(
                         context: context,
-                        builder: (context) => Image.file(File(image)));
+                        builder: (context) => Image.file(File(imagePath)));
                   }
                 }
               },

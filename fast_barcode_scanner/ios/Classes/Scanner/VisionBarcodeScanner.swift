@@ -16,8 +16,8 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
     var cornerPointConverter: VisionBarcodeCornerPointConverter
     var confidence: Double
     var onDetection: (() -> Void)?
-    var uiImage: UIImage?
-    var onCacheImage: ((String, UIImage?) -> Void)
+    var capturedImage: UIImage?
+    var onCacheImage: ((String, UIImage) -> Void)
 
     private let output = AVCaptureVideoDataOutput()
     private let outputQueue = DispatchQueue(label: "fast_barcode_scanner.data.serial", qos: .userInitiated,
@@ -96,6 +96,12 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
             do {
+                let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+                let context = CIContext()
+                if let cgImage = context.createCGImage(ciImage, from: ciImage.extent) {
+                    capturedImage = UIImage(cgImage: cgImage)
+                }
+
                 try visionSequenceHandler.perform(visionBarcodesRequests, on: pixelBuffer)
             } catch {
                 handleVisionRequestUpdate(request: nil, error: error)
@@ -107,7 +113,6 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
 
     func process(_ cgImage: CGImage) {
         do {
-            uiImage = UIImage(cgImage: cgImage)
             try visionSequenceHandler.perform(visionBarcodesRequests, on: cgImage)
         } catch {
             handleVisionRequestUpdate(request: nil, error: error)
@@ -145,8 +150,8 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
         }
         let uniqueCodes = Array(barcodeDict.values)
 
-        if uiImage != nil && !uniqueCodes.isEmpty {
-            onCacheImage((uniqueCodes.first!)[1] as! String, uiImage)
+        if !uniqueCodes.isEmpty && capturedImage != nil {
+            onCacheImage((uniqueCodes.first!)[1] as! String, capturedImage!)
         }
 
         onDetection?()

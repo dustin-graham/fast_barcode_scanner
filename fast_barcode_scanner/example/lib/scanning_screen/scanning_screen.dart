@@ -239,7 +239,7 @@ class _ScanningScreenState extends State<ScanningScreen> {
                               onPressed: () async {
                                 if (currentCode != null) {
                                   final path = await cam
-                                      .retrieveCachedImage(currentCode!);
+                                      .retrieveCachedImagePath(currentCode!);
                                   if (path != null && context.mounted) {
                                     showModalBottomSheet(
                                         context: context,
@@ -250,6 +250,12 @@ class _ScanningScreenState extends State<ScanningScreen> {
                                 }
                               },
                               child: const Text('Get Image Cache'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                cam.clearCachedImage();
+                              },
+                              child: const Text('Clear Image Cache'),
                             )
                           ],
                         ),

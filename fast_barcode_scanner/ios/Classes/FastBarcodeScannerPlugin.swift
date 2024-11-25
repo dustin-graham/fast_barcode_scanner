@@ -2,7 +2,6 @@ import Flutter
 import AVFoundation
 import UIKit
 
-
 @available(iOS 11.0, *)
 public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     let commandChannel: FlutterMethodChannel

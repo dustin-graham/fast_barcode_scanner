@@ -24,7 +24,7 @@ class AVFoundationBarcodeScanner: NSObject, BarcodeScanner, AVCaptureMetadataOut
     // for the Camera.
     var onDetection: (() -> Void)?
 
-    var onCacheImage: ((String, [UInt8]?) -> Void)
+    var onCacheImage: ((String, UIImage) -> Void)
 
     private let output = AVCaptureMetadataOutput()
     private var photoOutput = AVCapturePhotoOutput()
@@ -33,7 +33,7 @@ class AVFoundationBarcodeScanner: NSObject, BarcodeScanner, AVCaptureMetadataOut
     private var _symbologies = [String]()
     private var isPaused = false
 
-    private var capturedImage: [UInt8]?
+    private var capturedImage: UIImage?
     private var isCapturing = false
 
     var symbologies: [String] {
@@ -109,7 +109,7 @@ class AVFoundationBarcodeScanner: NSObject, BarcodeScanner, AVCaptureMetadataOut
             isCapturing = true
             photoOutput.capturePhoto(with: photoSettings, delegate: self)
             if !scannedCodes.isEmpty && capturedImage != nil {
-                onCacheImage((scannedCodes.first!)[1] as! String, capturedImage)
+                onCacheImage((scannedCodes.first!)[1] as! String, capturedImage!)
             }
         }
 
@@ -142,6 +142,6 @@ extension AVFoundationBarcodeScanner: AVCapturePhotoCaptureDelegate {
             print("Error while generating image from photo capture data.")
             return
         }
-        capturedImage = [UInt8](imageData)
+        capturedImage = UIImage(data: imageData)
      }
 }
