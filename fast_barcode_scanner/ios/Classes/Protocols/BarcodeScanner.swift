@@ -9,7 +9,7 @@ protocol BarcodeScanner {
 
     var onDetection: (() -> Void)? { get set }
 
-    var onCacheImage: ((String, [UInt8]?) -> Void) { get set }
+    var onCacheImage: ((String, UIImage?) -> Void) { get set }
 
     func start()
 

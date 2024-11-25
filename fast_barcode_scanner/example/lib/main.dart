@@ -136,11 +136,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 final cam = CameraController();
 
                 if (currentCode != null) {
-                  final image = await cam.retrieveImageCache(currentCode!);
+                  final image = await cam.retrieveCachedImage(currentCode!);
                   if (image != null && context.mounted) {
                     showModalBottomSheet(
                         context: context,
-                        builder: (context) => Image.memory(image));
+                        builder: (context) => Image.file(File(image)));
                   }
                 }
               },
@@ -149,7 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ElevatedButton(
               onPressed: () {
                 currentCode = null;
-                CameraController().clearImageCache();
+                CameraController().clearCachedImage();
               },
               child: const Text('Clear Image Cache'),
             ),

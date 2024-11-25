@@ -5,7 +5,7 @@ typealias AVBarcodeMetadataConverter = (AVMetadataObject) -> AVMetadataMachineRe
 class AVFoundationBarcodeScanner: NSObject, BarcodeScanner, AVCaptureMetadataOutputObjectsDelegate {
     typealias Barcode = AVMetadataMachineReadableCodeObject
 
-    init(barcodeObjectLayerConverter: @escaping AVBarcodeMetadataConverter, onCacheImage: @escaping ((String, [UInt8]?) -> Void), resultHandler: @escaping ResultHandler) {
+    init(barcodeObjectLayerConverter: @escaping AVBarcodeMetadataConverter, onCacheImage: @escaping ((String, UIImage) -> Void), resultHandler: @escaping ResultHandler) {
         self.resultHandler = resultHandler
         self.barcodeMetadataConverter = barcodeObjectLayerConverter
         self.onCacheImage = onCacheImage
