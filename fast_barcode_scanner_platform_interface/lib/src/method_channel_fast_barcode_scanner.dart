@@ -102,10 +102,11 @@ class MethodChannelFastBarcodeScanner extends FastBarcodeScannerPlatform {
   Future<String?> retrieveCachedImagePath({required String code}) async {
     try {
       final path =
-          await _channel.invokeMethod('retrieveCachedImage', {'code': code});
+      await _channel.invokeMethod('retrieveCachedImage', {'code': code});
       return path;
     } on PlatformException catch (e) {
-      throw 'Failed to retrieve image path: ${e.message}';
+      print('Failed to retrieve image path: ${e.message}');
+      return null;
     }
   }
 
