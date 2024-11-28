@@ -1,3 +1,8 @@
+## 2.2.0
+## 2.1.0
+
+- Add 2 methods `retrieveCachedImage` and `clearCachedImage` which allow retrieving the cached image with the scanned code.
+
 ## 2.0.0-dev.2
 
 - Refactoring

@@ -20,6 +20,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _disposeCheckboxValue = true;
+  String? currentCode;
 
   @override
   Widget build(BuildContext context) {
@@ -36,23 +37,26 @@ class _HomeScreenState extends State<HomeScreen> {
                 IOSApiMode? apiMode;
                 if (Platform.isIOS) {
                   apiMode = await showDialog<IOSApiMode>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                            title: const Text("Scanning Framework"),
-                            actions: [
-                              TextButton(
-                                  onPressed: () {
-                                    Navigator.pop(context, IOSApiMode.avFoundation);
-                                  },
-                                  child: const Text("AVFoundation")),
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.pop(context, IOSApiMode.visionStandard);
-                                },
-                                child: const Text("Vision"),
-                              ),
-                            ],
-                          )) ?? IOSApiMode.avFoundation;
+                          context: context,
+                          builder: (context) => AlertDialog(
+                                title: const Text("Scanning Framework"),
+                                actions: [
+                                  TextButton(
+                                      onPressed: () {
+                                        Navigator.pop(
+                                            context, IOSApiMode.avFoundation);
+                                      },
+                                      child: const Text("AVFoundation")),
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.pop(
+                                          context, IOSApiMode.visionStandard);
+                                    },
+                                    child: const Text("Vision"),
+                                  ),
+                                ],
+                              )) ??
+                      IOSApiMode.avFoundation;
                 }
                 Navigator.push(
                   context,
@@ -112,6 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       } else {
                         children =
                             barcodes.map((e) => Text(e.toString())).toList();
+                        currentCode = barcodes.first.value;
                       }
 
                       return SimpleDialog(
@@ -125,6 +130,31 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
               },
               child: const Text('Scan image'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final cam = CameraController();
+
+                if (currentCode != null) {
+                  final imagePath =
+                      (await cam.retrieveCachedImage(currentCode!));
+                  if (imagePath != null &&
+                      context.mounted &&
+                      File(imagePath).existsSync()) {
+                    showModalBottomSheet(
+                        context: context,
+                        builder: (context) => Image.file(File(imagePath)));
+                  }
+                }
+              },
+              child: const Text('Get Image Cache'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                currentCode = null;
+                CameraController().clearCachedImage();
+              },
+              child: const Text('Clear Image Cache'),
             ),
             Row(
               mainAxisSize: MainAxisSize.min,

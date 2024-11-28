@@ -16,6 +16,8 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
     var cornerPointConverter: VisionBarcodeCornerPointConverter
     var confidence: Double
     var onDetection: (() -> Void)?
+    var capturedImage: UIImage?
+    var onCacheImage: ((String, UIImage) -> Void)
 
     private let output = AVCaptureVideoDataOutput()
     private let outputQueue = DispatchQueue(label: "fast_barcode_scanner.data.serial", qos: .userInitiated,
@@ -70,11 +72,12 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
         }
     }
 
-    init(cornerPointConverter: @escaping VisionBarcodeCornerPointConverter, confidence: Double, resultHandler: @escaping ResultHandler, errorHandler: @escaping ErrorHandler) {
+    init(cornerPointConverter: @escaping VisionBarcodeCornerPointConverter, confidence: Double, onCacheImage: @escaping ((String, UIImage) -> Void), resultHandler: @escaping ResultHandler, errorHandler: @escaping ErrorHandler) {
         self.resultHandler = resultHandler
         self.errorHandler = errorHandler
         self.cornerPointConverter = cornerPointConverter
         self.confidence = confidence
+        self.onCacheImage = onCacheImage
         super.init()
 
         output.alwaysDiscardsLateVideoFrames = true
@@ -93,6 +96,12 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
             do {
+                let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+                let context = CIContext()
+                if let cgImage = context.createCGImage(ciImage, from: ciImage.extent) {
+                    capturedImage = UIImage(cgImage: cgImage)
+                }
+
                 try visionSequenceHandler.perform(visionBarcodesRequests, on: pixelBuffer)
             } catch {
                 handleVisionRequestUpdate(request: nil, error: error)
@@ -117,7 +126,9 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
             let message = error != nil ? "\(error!)" : "unknownError"
             print("Error scanning image: \(message)")
             let flutterError = FlutterError(code: "UNEXPECTED_SCAN_ERROR", message: message, details: error?._code)
-            errorHandler(flutterError)
+            DispatchQueue.main.async {
+                self.errorHandler(flutterError)
+            }
             return
         }
 
@@ -139,8 +150,14 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
         }
         let uniqueCodes = Array(barcodeDict.values)
 
+        if !uniqueCodes.isEmpty && capturedImage != nil {
+            onCacheImage((uniqueCodes.first!)[1] as! String, capturedImage!)
+        }
+
         onDetection?()
-        resultHandler(uniqueCodes)
+        DispatchQueue.main.async {
+            self.resultHandler(uniqueCodes)
+        }
     }
 }
 

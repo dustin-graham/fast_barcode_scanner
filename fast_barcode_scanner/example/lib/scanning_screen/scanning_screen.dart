@@ -250,6 +250,12 @@ class _ScanningScreenState extends State<ScanningScreen> {
                                 }
                               },
                               child: const Text('Get Image Cache'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                cam.clearCachedImage();
+                              },
+                              child: const Text('Clear Image Cache'),
                             )
                           ],
                         ),

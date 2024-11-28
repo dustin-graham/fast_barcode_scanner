@@ -1,5 +1,6 @@
 import Flutter
 import AVFoundation
+import UIKit
 
 @available(iOS 11.0, *)
 public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
@@ -50,6 +51,8 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
             case "config": response = try updateConfiguration(call: call).asDict
             case "scan": try analyzeImage(args: call.arguments, on: result); return
             case "dispose": dispose()
+            case "retrieveCachedImage": response = try retrieveCachedImage(code: (call.arguments as! [String: String])["code"]!)
+            case "clearCachedImage": try clearCachedImage()
             default: response = FlutterMethodNotImplemented
             }
 
@@ -72,8 +75,8 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
         if configuration.apiMode == ApiMode.avFoundation {
             scanner = AVFoundationBarcodeScanner(barcodeObjectLayerConverter: { barcodes in
                 self.factory.preview?.videoPreviewLayer.transformedMetadataObject(for: barcodes) as? AVMetadataMachineReadableCodeObject
-            }) { [unowned self] barcodes in
-                detectionsSink?(barcodes)
+            }, onCacheImage: onCacheImage) { [unowned self] barcodes in
+                self.detectionsSink?(barcodes)
             }
         } else {
             scanner = VisionBarcodeScanner(cornerPointConverter: { observation in
@@ -94,11 +97,13 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
                     [Int(bottomLeft.x), Int(bottomLeft.y)],
                     [Int(bottomRight.x), Int(bottomRight.y)]
                 ]
-            }, confidence: configuration.confidence, resultHandler: { [unowned self] barcodes in
-                detectionsSink?(barcodes)
-            }, errorHandler: { [unowned self] error in
-                detectionsSink?(error)
-            })
+            }, confidence: configuration.confidence, onCacheImage: onCacheImage, resultHandler: { [unowned self] barcodes in
+                self.detectionsSink?(barcodes)
+            },
+errorHandler: { [unowned self] error in
+                self.detectionsSink?(error)
+            }
+            )
         }
 
         let camera = try Camera(configuration: configuration, scanner: scanner)
@@ -167,17 +172,24 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
         return camera.previewConfiguration
     }
 
-    func analyzeImage(args: Any?, on resultHandler: @escaping (Any?) -> Void) throws {
-        guard #available(iOS 11, *) else {
-            throw ScannerError.minimumTarget
+    func retrieveCachedImage(code: String) throws -> String? {
+        if let imagePath = ImageHelper.shared.retrieveImagePath(code: code) {
+            return imagePath
         }
+        return nil
+    }
 
+    func clearCachedImage() throws {
+        ImageHelper.shared.clearCache()
+    }
+
+    func analyzeImage(args: Any?, on resultHandler: @escaping (Any?) -> Void) throws {
         let visionResultHandler: BarcodeScanner.ResultHandler = { result in
-            resultHandler(result)
+                resultHandler(result)
         }
 
         let visionErrorHandler: VisionBarcodeScanner.ErrorHandler = { error in
-            resultHandler(error)
+                resultHandler(error)
         }
 
         if let container = args as? [Any] {
@@ -189,7 +201,7 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
                 throw ScannerError.loadingDataFailed
             }
 
-            let scanner = VisionBarcodeScanner(cornerPointConverter: { _ in [] }, confidence: 0.6, resultHandler: visionResultHandler, errorHandler: visionErrorHandler)
+            let scanner = VisionBarcodeScanner(cornerPointConverter: { _ in [] }, confidence: 0.6, onCacheImage: onCacheImage, resultHandler: visionResultHandler, errorHandler: visionErrorHandler)
             scanner.process(cgImage)
         } else {
             guard
@@ -207,7 +219,7 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
                 }
 
                 self?.picker = nil
-                let scanner = VisionBarcodeScanner(cornerPointConverter: { _ in [] }, confidence: 0.6, resultHandler: visionResultHandler, errorHandler: visionErrorHandler)
+                let scanner = VisionBarcodeScanner(cornerPointConverter: { _ in [] }, confidence: 0.6, onCacheImage: self!.onCacheImage, resultHandler: visionResultHandler, errorHandler: visionErrorHandler)
                 scanner.process(cgImage)
             }
 
@@ -222,6 +234,10 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
 
     }
 
+    func onCacheImage(code: String, scanImage: UIImage) {
+        ImageHelper.shared.storeImageToCache(image: scanImage, code: code)
+    }
+
     public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
         detectionsSink = events
         return nil
@@ -230,5 +246,70 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
     public func onCancel(withArguments arguments: Any?) -> FlutterError? {
         detectionsSink = nil
         return nil
+    }
+}
+
+class ImageHelper {
+    private var savedCodes: [String: String] = [:]
+
+    static let shared = ImageHelper()
+
+    private init() {}
+
+    // Store image to the path with barcode as filename
+    private func storeImage(imageBytes: Data, key: String) {
+
+        let fileManager = FileManager.default
+        if let documentDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+            do {
+                let barcodeDirectory = documentDirectory.appendingPathComponent("barcode_images")
+                try fileManager.createDirectory(at: barcodeDirectory, withIntermediateDirectories: true, attributes: nil)
+
+                let imageFile = barcodeDirectory.appendingPathComponent(key + ".jpeg")
+                try imageBytes.write(to: imageFile)
+
+                savedCodes[key] = imageFile.absoluteString
+            } catch {
+                print("Error storing image: \(error)")
+            }
+        }
+    }
+
+    private func isImageSaved(code: String) -> Bool {
+        return savedCodes.keys.contains(code)
+    }
+
+    // Retrieve image from cache by barcode
+    func retrieveImagePath(code: String) -> String? {
+        return savedCodes[code]
+    }
+
+    func clearCache() {
+        savedCodes.removeAll()
+
+        let fileManager = FileManager.default
+        if let documentDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let barcodeDirectory = documentDirectory.appendingPathComponent("barcode_images")
+
+            do {
+                try fileManager.removeItem(at: barcodeDirectory)
+            } catch {
+                print("Error clearing cache: \(error)")
+            }
+        }
+    }
+
+    func storeImageToCache(image: UIImage, code: String) {
+        if isImageSaved(code: code) {
+            return
+        }
+
+        // Convert UIImage to JPEG Data
+        guard let jpegBytes = image.jpegData(compressionQuality: 1.0) else {
+            print("Error converting image to JPEG")
+            return
+        }
+
+        storeImage(imageBytes: jpegBytes, key: code)
     }
 }
