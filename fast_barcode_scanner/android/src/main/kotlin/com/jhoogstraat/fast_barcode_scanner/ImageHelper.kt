@@ -1,5 +1,8 @@
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
+import android.graphics.Matrix
 import android.graphics.Rect
 import android.graphics.YuvImage
 import android.media.Image
@@ -99,11 +102,22 @@ class ImageHelper {
                     val out = ByteArrayOutputStream()
                     yuvImage.compressToJpeg(Rect(0, 0, img.width, img.height), 100, out)
                     val jpegBytes = out.toByteArray()
-                    storeImage(jpegBytes, code, context)
+                    val rotatedJpegBytes = rotateImageIfRequired(jpegBytes) // Rotate 90 degrees for portrait
+                    storeImage(rotatedJpegBytes, code, context)
                 }
             }
         } else {
             throw IllegalArgumentException("Unsupported image format")
         }
+    }
+
+    private fun rotateImageIfRequired(jpegBytes: ByteArray): ByteArray {
+        val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
+        val matrix = Matrix()
+        matrix.postRotate(90.0F)
+        val rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        val outputStream = ByteArrayOutputStream()
+        rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+        return outputStream.toByteArray()
     }
 }
