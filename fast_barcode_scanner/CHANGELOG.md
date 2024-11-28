@@ -1,5 +1,10 @@
+## 2.3.1
+
+- move clear cache before disposing of controller
+
 ## 2.3.0
 ## 2.2.2
+
 - Add 2 methods `retrieveCachedImage` and `clearCachedImage` which allow retrieving the cached image with the scanned code.
 
 ## 2.1.0
