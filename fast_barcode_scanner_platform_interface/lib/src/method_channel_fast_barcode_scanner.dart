@@ -99,7 +99,7 @@ class MethodChannelFastBarcodeScanner extends FastBarcodeScannerPlatform {
   }
 
   @override
-  Future<String?> retrieveCachedImagePath({required String code}) async {
+  Future<String?> retrieveCachedImage({required String code}) async {
     try {
       final path =
           await _channel.invokeMethod('retrieveCachedImage', {'code': code});

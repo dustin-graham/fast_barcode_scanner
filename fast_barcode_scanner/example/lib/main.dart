@@ -137,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 if (currentCode != null) {
                   final imagePath =
-                      (await cam.retrieveCachedImagePath(currentCode!));
+                      (await cam.retrieveCachedImage(currentCode!));
                   if (imagePath != null &&
                       context.mounted &&
                       File(imagePath).existsSync()) {
