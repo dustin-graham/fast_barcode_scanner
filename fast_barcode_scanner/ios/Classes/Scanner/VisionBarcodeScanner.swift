@@ -99,7 +99,8 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
                 let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
                 let context = CIContext()
                 if let cgImage = context.createCGImage(ciImage, from: ciImage.extent) {
-                    capturedImage = UIImage(cgImage: cgImage)
+                    let uiImage = UIImage(cgImage: cgImage)
+                    capturedImage = UIImage(cgImage: cgImage, scale: uiImage.scale, orientation: .right)
                 }
 
                 try visionSequenceHandler.perform(visionBarcodesRequests, on: pixelBuffer)
