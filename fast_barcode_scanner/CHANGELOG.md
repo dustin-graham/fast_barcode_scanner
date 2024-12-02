@@ -1,4 +1,4 @@
-## 2.3.2-update-ios.1
+## 2.3.2
 ## 2.3.1
 
 - move clear cache before disposing of controller
