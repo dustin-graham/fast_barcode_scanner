@@ -1,4 +1,4 @@
-## 2.3.3
+## 2.3.4
 ## 2.3.1
 
 - move clear cache before disposing of controller

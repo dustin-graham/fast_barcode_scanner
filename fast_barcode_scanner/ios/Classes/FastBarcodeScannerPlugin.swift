@@ -65,7 +65,7 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
     }
 
     func initialize(args: Any?) throws -> PreviewConfiguration {
-        guard camera == nil else {
+        if camera != nil {
             return
         }
 
