@@ -139,7 +139,6 @@ extension Array where Element == CGPoint {
 extension AVFoundationBarcodeScanner: AVCapturePhotoCaptureDelegate {
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         isCapturing = false
-        capturedImage = nil
         guard let imageData = photo.fileDataRepresentation() else {
             print("Error while generating image from photo capture data.")
             return

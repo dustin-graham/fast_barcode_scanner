@@ -1,6 +1,7 @@
 import Flutter
 import AVFoundation
 import UIKit
+import CryptoKit
 
 @available(iOS 11.0, *)
 public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
@@ -64,8 +65,8 @@ public class FastBarcodeScannerPlugin: NSObject, FlutterPlugin, FlutterStreamHan
     }
 
     func initialize(args: Any?) throws -> PreviewConfiguration {
-        guard camera == nil else {
-            throw ScannerError.alreadyInitialized
+        if camera != nil {
+            dispose()
         }
 
         guard let configuration = ScannerConfiguration(args) else {
@@ -263,9 +264,19 @@ class ImageHelper {
         if let documentDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
             do {
                 let barcodeDirectory = documentDirectory.appendingPathComponent("barcode_images")
+
+                if fileManager.fileExists(atPath: barcodeDirectory.path) {
+                    print("Directory does not exist: \(barcodeDirectory.path)")
+                }
+
                 try fileManager.createDirectory(at: barcodeDirectory, withIntermediateDirectories: true, attributes: nil)
 
-                let imageFile = barcodeDirectory.appendingPathComponent(key + ".jpeg")
+                let fileName = key
+                if #available(iOS 13.0, *) {
+                    let fileName = stringToMD5(string: key)
+                }
+
+                let imageFile = barcodeDirectory.appendingPathComponent(fileName + ".jpeg")
                 try imageBytes.write(to: imageFile)
 
                 savedCodes[key] = imageFile.absoluteString
@@ -273,6 +284,17 @@ class ImageHelper {
                 print("Error storing image: \(error)")
             }
         }
+    }
+
+    @available(iOS 13.0, *)
+    private func stringToMD5(string: String) -> String {
+      guard let data = string.data(using: .utf8) else {
+        fatalError("Failed to convert string to data")
+      }
+
+      let digest = Insecure.MD5.hash(data: data)
+
+      return digest.map { String(format: "%02hhx", $0) }.joined()
     }
 
     private func isImageSaved(code: String) -> Bool {
@@ -289,9 +311,13 @@ class ImageHelper {
 
         let fileManager = FileManager.default
         if let documentDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
-            let barcodeDirectory = documentDirectory.appendingPathComponent("barcode_images")
-
             do {
+                let barcodeDirectory = documentDirectory.appendingPathComponent("barcode_images")
+                guard fileManager.fileExists(atPath: barcodeDirectory.path) else {
+                    print("Directory does not exist: \(barcodeDirectory.path)")
+                    return
+                }
+
                 try fileManager.removeItem(at: barcodeDirectory)
             } catch {
                 print("Error clearing cache: \(error)")

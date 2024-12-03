@@ -90,7 +90,7 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
     func stop() {
         output.setSampleBufferDelegate(nil, queue: nil)
     }
-
+    
     // MARK: Vision capture output
 
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
@@ -153,6 +153,7 @@ class VisionBarcodeScanner: NSObject, BarcodeScanner, AVCaptureVideoDataOutputSa
 
         if !uniqueCodes.isEmpty && capturedImage != nil {
             onCacheImage((uniqueCodes.first!)[1] as! String, capturedImage!)
+            capturedImage = nil
         }
 
         onDetection?()
