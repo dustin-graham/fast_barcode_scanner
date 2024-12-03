@@ -14,6 +14,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.security.MessageDigest
 
 class ImageHelper {
     private var savedCodes: MutableMap<String, String> = mutableMapOf()
@@ -31,6 +32,7 @@ class ImageHelper {
 
     // Store image to the path with barcode as filename
     private fun storeImage(imageBytes: ByteArray?, key: String, context: Context) {
+        val sanitizedKey = sanitizeFileName(key)
         val externalFilesDirectory = context.cacheDir;
         val imageFile: File
 
@@ -41,9 +43,10 @@ class ImageHelper {
                 barcodeDirectory.mkdirs()
             }
 
-            imageFile = File.createTempFile(key, ".jpeg", barcodeDirectory)
+            imageFile = File.createTempFile(sanitizedKey, ".jpeg", barcodeDirectory)
         } catch (e: IOException) {
-            throw RuntimeException(e)
+            e.printStackTrace()
+            return
         }
 
         try {
@@ -119,5 +122,11 @@ class ImageHelper {
         val outputStream = ByteArrayOutputStream()
         rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
         return outputStream.toByteArray()
+    }
+
+
+    private fun sanitizeFileName(url: String): String {
+        val md = MessageDigest.getInstance("MD5")
+        return md.digest(url.toByteArray()).joinToString("") { "%02x".format(it) }
     }
 }
