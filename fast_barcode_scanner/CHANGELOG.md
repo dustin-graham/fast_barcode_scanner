@@ -1,4 +1,7 @@
-## 2.3.4
+## 2.4.2
+
+- Return when camera is already initialized and during `stop()`
+
 ## 2.3.1
 
 - move clear cache before disposing of controller
