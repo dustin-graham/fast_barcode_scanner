@@ -240,9 +240,7 @@ class Camera(
     }
 
     fun stopCamera() {
-        if (!isInitialized) {
-            throw ScannerException.NotInitialized()
-        } else if (!isRunning) {
+        if (!isRunning || !isInitialized) {
             return
         }
 
