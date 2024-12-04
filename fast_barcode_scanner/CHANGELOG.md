@@ -1,3 +1,5 @@
+## 2.4.4
+## 2.4.3
 ## 2.4.2
 
 - Return when camera is already initialized and during `stop()`
