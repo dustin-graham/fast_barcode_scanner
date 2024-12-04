@@ -203,9 +203,10 @@ class FastBarcodeScannerPlugin : FlutterPlugin, MethodCallHandler, StreamHandler
 
     @SuppressLint("UnsafeOptInUsageError")
     private fun initialize(configuration: HashMap<String, Any>): Task<PreviewConfiguration> {
-        if (this.camera != null)
-            return
-
+        if (this.camera != null) {
+            return this.camera!!.requestPermissions()
+                .continueWithTask { this.camera!!.loadCamera() }
+        }
         val pluginBinding = this.pluginBinding ?: throw ScannerException.ActivityNotConnected()
         val activityBinding = this.activityBinding ?: throw ScannerException.ActivityNotConnected()
 
